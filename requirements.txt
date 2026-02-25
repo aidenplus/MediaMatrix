@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+httpx
+watchdog
+pydantic
+pyyaml
+pytest
+pytest-asyncio
+pytest-mock

@@ -1,0 +1,73 @@
+from pathlib import Path
+from typing import Callable
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
+
+
+class _EventHandler(FileSystemEventHandler):
+    """
+    watchdog 事件处理器，过滤目录事件，只处理文件的新增和移动。
+    移动事件（如从下载目录移入媒体库）也视为新文件触发回调。
+    """
+
+    def __init__(self, callback: Callable[[str], None]):
+        self._callback = callback
+
+    def on_created(self, event: FileSystemEvent):
+        if not event.is_directory:
+            self._callback(event.src_path)
+
+    def on_moved(self, event: FileSystemEvent):
+        # 文件被移动到监控目录时，以目标路径触发回调
+        if not event.is_directory:
+            self._callback(event.dest_path)
+
+
+class MediaScanner:
+    """
+    媒体文件扫描器，基于 watchdog 实现实时目录监控。
+
+    使用方式：
+    1. add_path() 添加监控目录
+    2. scan_existing() 处理已存在的文件（启动时全量扫描）
+    3. start() 启动实时监控
+    4. stop() 停止监控（应在应用关闭时调用）
+    """
+
+    def __init__(self, on_file: Callable[[str], None]):
+        """
+        :param on_file: 发现新文件时的回调函数，参数为文件绝对路径
+        """
+        self._on_file = on_file
+        self._observer = Observer()
+        self.watch_paths: list[str] = []
+
+    def add_path(self, path: str) -> None:
+        """添加一个需要监控的根目录"""
+        self.watch_paths.append(path)
+
+    def start(self) -> None:
+        """启动 watchdog 观察者，开始监听所有已注册路径"""
+        handler = _EventHandler(self._on_file)
+        for path in self.watch_paths:
+            self._observer.schedule(handler, path, recursive=True)
+        self._observer.start()
+
+    def stop(self) -> None:
+        """停止监控并等待线程退出，未启动时安全跳过"""
+        if self._observer.is_alive():
+            self._observer.stop()
+            self._observer.join()
+
+    def scan_existing(self) -> list[str]:
+        """
+        扫描所有监控目录中已存在的文件，返回文件路径列表。
+        用于应用启动时的全量刮削（配合 missing_only 策略避免重复处理）。
+        TODO: 增加媒体文件扩展名过滤
+        """
+        files = []
+        for path in self.watch_paths:
+            for p in Path(path).rglob("*"):
+                if p.is_file():
+                    files.append(str(p))
+        return files

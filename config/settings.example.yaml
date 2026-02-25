@@ -1,0 +1,33 @@
+# MediaMatrix 配置文件
+# 复制此文件为 settings.yaml 并填入你的配置
+# cp config/settings.example.yaml config/settings.yaml
+
+app:
+  host: "0.0.0.0"
+  port: 8000
+
+media:
+  # 媒体库根目录，支持配置多个路径（Docker 挂载路径）
+  paths:
+    - /media/Movies
+    - /media/TV Shows
+  # 刮削策略：
+  #   missing_only - 仅处理缺少 NFO 的媒体（推荐）
+  #   overwrite    - 强制覆盖已有 NFO
+  scrape_mode: missing_only
+
+providers:
+  tmdb:
+    # TMDB API Key，申请地址：https://www.themoviedb.org/settings/api
+    api_key: ""
+    # 元数据语言，影响标题、简介、类型等字段
+    language: zh-CN
+
+plugins:
+  # 插件目录，支持 .py 源码插件和 .so 二进制插件
+  # Docker 环境使用 /plugins，本地开发使用 ./plugins
+  dir: ./plugins
+
+concurrency:
+  # 最大并发 API 请求数，防止触发 TMDB 等平台的限速封禁
+  max_requests: 3
