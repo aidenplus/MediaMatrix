@@ -15,6 +15,23 @@ media:
   #   missing_only - 仅处理缺少 NFO 的媒体（推荐）
   #   overwrite    - 强制覆盖已有 NFO
   scrape_mode: missing_only
+  # 自动整理目录：刮削完成后自动创建 "电影名 (年份)/" 子目录并移入文件
+  # 默认关闭，开启前请确认媒体库路径正确，避免文件被移到错误位置
+  auto_organize: false
+  # 支持的视频文件扩展名
+  video_extensions:
+    - .mkv
+    - .mp4
+    - .avi
+    - .mov
+    - .ts
+  # 支持的音乐文件扩展名
+  music_extensions:
+    - .flac
+    - .mp3
+    - .aac
+    - .wav
+    - .m4a
 
 providers:
   tmdb:
@@ -31,3 +48,7 @@ plugins:
 concurrency:
   # 最大并发 API 请求数，防止触发 TMDB 等平台的限速封禁
   max_requests: 3
+
+logging:
+  level: INFO   # DEBUG | INFO | WARNING | ERROR
+  file: logs/mediamatrix.log

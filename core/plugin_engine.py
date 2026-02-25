@@ -1,6 +1,9 @@
 import importlib.util
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class BasePlugin(ABC):
@@ -51,7 +54,7 @@ class PluginEngine:
         """扫描并加载目录下所有 .py 和 .so 插件，跳过以 _ 开头的文件"""
         plugin_path = Path(plugin_dir)
         if not plugin_path.exists():
-            print(f"[PluginEngine] plugin dir not found, skipping: {plugin_dir}")
+            logger.warning("插件目录不存在，跳过加载: %s", plugin_dir)
             return
         for path in plugin_path.iterdir():
             if path.suffix in (".py", ".so") and not path.name.startswith("_"):
@@ -70,6 +73,7 @@ class PluginEngine:
                     and issubclass(obj, BasePlugin)
                     and obj is not BasePlugin):
                 self._plugins.append(obj())
+                logger.info("已加载插件: %s v%s", obj.name, obj.version)
 
     def trigger(self, hook_name: str, **kwargs) -> None:
         """
@@ -82,4 +86,4 @@ class PluginEngine:
                 try:
                     handler(**kwargs)
                 except Exception as e:
-                    print(f"[PluginEngine] {plugin.name} hook {hook_name} error: {e}")
+                    logger.error("插件 %s hook %s 异常: %s", plugin.name, hook_name, e)

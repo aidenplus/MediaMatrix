@@ -24,7 +24,17 @@ class MediaIdentifier:
     从文件路径解析媒体类型、标题和年份，生成 MediaQuery。
     识别优先级：剧集特征（SxxExx）> 电影年份格式 > 兜底（文件名作为标题）
     音乐文件通过扩展名判断，标签读取为 TODO（当前用文件名代替）。
+
+    video_extensions 和 music_extensions 可由外部传入，默认使用内置集合。
     """
+
+    def __init__(
+        self,
+        video_extensions: set[str] = None,
+        music_extensions: set[str] = None,
+    ):
+        self._video_extensions = video_extensions or VIDEO_EXTENSIONS
+        self._music_extensions = music_extensions or MUSIC_EXTENSIONS
 
     def identify(self, path: str) -> Optional[MediaQuery]:
         """
@@ -33,9 +43,9 @@ class MediaIdentifier:
         p = Path(path)
         suffix = p.suffix.lower()
 
-        if suffix in MUSIC_EXTENSIONS:
+        if suffix in self._music_extensions:
             return self._identify_music(p)
-        if suffix in VIDEO_EXTENSIONS:
+        if suffix in self._video_extensions:
             return self._identify_video(p)
         return None
 

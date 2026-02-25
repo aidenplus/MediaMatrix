@@ -1,7 +1,10 @@
 from pathlib import Path
 from typing import Callable
+import logging
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
+
+logger = logging.getLogger(__name__)
 
 
 class _EventHandler(FileSystemEventHandler):
@@ -15,11 +18,13 @@ class _EventHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         if not event.is_directory:
+            logger.debug("检测到新文件: %s", event.src_path)
             self._callback(event.src_path)
 
     def on_moved(self, event: FileSystemEvent):
         # 文件被移动到监控目录时，以目标路径触发回调
         if not event.is_directory:
+            logger.debug("检测到移入文件: %s", event.dest_path)
             self._callback(event.dest_path)
 
 
@@ -51,6 +56,7 @@ class MediaScanner:
         handler = _EventHandler(self._on_file)
         for path in self.watch_paths:
             self._observer.schedule(handler, path, recursive=True)
+            logger.info("开始监控目录: %s", path)
         self._observer.start()
 
     def stop(self) -> None:
@@ -58,6 +64,7 @@ class MediaScanner:
         if self._observer.is_alive():
             self._observer.stop()
             self._observer.join()
+            logger.info("文件监控已停止")
 
     def scan_existing(self) -> list[str]:
         """
