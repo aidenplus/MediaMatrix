@@ -9,10 +9,13 @@ def setup_logging(level: str = "INFO", log_file: str = "logs/mediamatrix.log") -
     - 控制台：INFO 级别，简洁格式
     - 文件：DEBUG 级别，完整格式，按大小滚动（10MB x 3）
     """
-    numeric_level = getattr(logging, level.upper(), logging.INFO)
-
-    # 根 logger
     root = logging.getLogger()
+
+    # 避免重复注册（uvicorn reload 或多次调用时）
+    if root.handlers:
+        return
+
+    numeric_level = getattr(logging, level.upper(), logging.INFO)
     root.setLevel(logging.DEBUG)
 
     # 控制台 handler
@@ -42,5 +45,5 @@ def setup_logging(level: str = "INFO", log_file: str = "logs/mediamatrix.log") -
     root.addHandler(file_handler)
 
     # 抑制 uvicorn/httpx 等第三方库的 DEBUG 日志，避免刷屏
-    for noisy in ("uvicorn.access", "httpx", "httpcore"):
+    for noisy in ("uvicorn.access", "httpx", "httpcore", "fsevents", "watchdog"):
         logging.getLogger(noisy).setLevel(logging.WARNING)

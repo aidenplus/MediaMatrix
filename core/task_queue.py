@@ -186,15 +186,21 @@ class TaskQueue:
         target_dir = file_path.parent / f"{title}{year_str}"
 
         if target_dir.exists():
+            logger.debug("目标目录已存在，跳过整理: %s", target_dir.name)
             return
 
         target_dir.mkdir(parents=True)
+        moved = []
 
         # 移动视频文件
         shutil.move(str(file_path), str(target_dir / file_path.name))
+        moved.append(file_path.name)
 
         # 移动同目录生成的资产文件
         for asset in ["movie.nfo", "tvshow.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
             src = file_path.parent / asset
             if src.exists():
                 shutil.move(str(src), str(target_dir / asset))
+                moved.append(asset)
+
+        logger.info("目录整理完成: %s → %s/ (%s)", file_path.name, target_dir.name, ", ".join(moved))

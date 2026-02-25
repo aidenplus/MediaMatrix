@@ -1,0 +1,18 @@
+services:
+  mediamatrix:
+    build:
+      context: .
+      args:
+        PUID: ${PUID:-1000}
+        PGID: ${PGID:-1000}
+    container_name: mediamatrix
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      - ./config:/app/config          # 配置文件（含 settings.yaml 和 tasks.db）
+      - ./logs:/app/logs              # 日志
+      - ./plugins:/app/plugins        # 插件
+      - ${MEDIA_PATH:-./media}:/media # 媒体库（宿主机路径通过环境变量指定）
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}

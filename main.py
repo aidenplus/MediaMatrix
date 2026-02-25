@@ -85,6 +85,10 @@ async def lifespan(app: FastAPI):
     logger.info("MediaMatrix 启动中...")
     task_queue.start_worker()
     scanner.start()
+    existing = scanner.scan_existing()
+    enqueued = sum(1 for path in existing if task_queue.enqueue(path) is not None)
+    skipped = len(existing) - enqueued
+    logger.info("全量扫描完成: 发现 %d 个文件，入队 %d 个，跳过 %d 个", len(existing), enqueued, skipped)
     logger.info("MediaMatrix 已就绪")
     yield
     logger.info("MediaMatrix 关闭中...")
