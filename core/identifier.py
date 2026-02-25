@@ -3,22 +3,36 @@ from pathlib import Path
 from typing import Optional
 from providers.base import MediaQuery
 
+# 中文数字映射
+_CN_NUM = {"零":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,
+           "十一":11,"十二":12,"十三":13,"十四":14,"十五":15,"十六":16,"十七":17,"十八":18,"十九":19,"二十":20}
+
+def _parse_num(s: str) -> int:
+    """将阿拉伯数字或中文数字字符串转为整数"""
+    if s.isdigit():
+        return int(s)
+    return _CN_NUM.get(s, 1)
+
+
 # 电影命名格式正则，按优先级排列
 MOVIE_PATTERNS = [
     re.compile(r"^(.+?)\s*\((\d{4})\)"),                       # 电影名 (2023)
     re.compile(r"^(.+?)[\.\s_](\d{4})(?:[\.\s_]|$)"),          # Movie.Name.2023 / Movie_Name_2023
 ]
 
+_CN = r"[零一二三四五六七八九十百]+"
+_NUM = rf"(?:\d+|{_CN})"
+
 # 剧集命名格式正则，每条正则需有两个捕获组：(季号, 集号)
 # 季号或集号无法提取时用 None 表示
 TV_PATTERNS: list[tuple[re.Pattern, str]] = [
     # 英文格式
-    (re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),   "se"),   # S01E01
-    (re.compile(r"(\d{1,2})x(\d{1,2})"),           "se"),   # 1x01
-    # 中文格式：第X季第X集 / 第X部第X集
-    (re.compile(r"第\s*(\d+)\s*[季部][^\d]*第\s*(\d+)\s*[集话]"), "se"),
-    # 只有集号：第X集 / 第X话（季号默认1）
-    (re.compile(r"第\s*(\d+)\s*[集话]"),            "e"),    # 只有集号
+    (re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),                          "se"),  # S01E01
+    (re.compile(r"(\d{1,2})x(\d{1,2})"),                                  "se"),  # 1x01
+    # 中文格式：第X季/部 + 第X集/话（支持中文数字，中间允许任意分隔符）
+    (re.compile(rf"第\s*({_NUM})\s*[季部][^第]*第\s*({_NUM})\s*[集话]"),  "se"),
+    # 只有集号：第X集/话（季号默认1）
+    (re.compile(rf"第\s*({_NUM})\s*[集话]"),                              "e"),
 ]
 
 MUSIC_EXTENSIONS = {".flac", ".mp3", ".aac", ".wav", ".m4a"}
@@ -64,9 +78,9 @@ class MediaIdentifier:
             if m:
                 title = pattern.split(name)[0].replace(".", " ").strip(" -._")
                 if mode == "se":
-                    season, episode = int(m.group(1)), int(m.group(2))
+                    season, episode = _parse_num(m.group(1)), _parse_num(m.group(2))
                 else:  # 只有集号，季号默认 1
-                    season, episode = 1, int(m.group(1))
+                    season, episode = 1, _parse_num(m.group(1))
                 return MediaQuery(title=title, media_type="tv", season=season, episode=episode)
 
         # 尝试电影命名格式，提取标题和年份

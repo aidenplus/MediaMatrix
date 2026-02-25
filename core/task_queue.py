@@ -151,13 +151,20 @@ class TaskQueue:
 
         # Step 2: 若已有剧集目录（同名 tvshow.nfo），直接移入跳过刮削
         if query.media_type == "tv" and self._config.auto_organize:
-            existing_show_dir = self._find_show_dir(file_path.parent, query.title)
+            # 在当前目录或上一级目录查找已有剧集目录
+            existing_show_dir = (
+                self._find_show_dir(file_path.parent, query.title) or
+                self._find_show_dir(file_path.parent.parent, query.title)
+            )
             if existing_show_dir:
                 season_num = query.season or 1
+                episode_num = query.episode or 1
                 season_dir = existing_show_dir / f"Season {season_num:02d}"
                 season_dir.mkdir(exist_ok=True)
-                shutil.move(str(file_path), str(season_dir / file_path.name))
-                logger.info("已归入现有剧集目录: %s → %s/Season %02d/", file_path.name, existing_show_dir.name, season_num)
+                new_name = f"{query.title} S{season_num:02d}E{episode_num:02d}{file_path.suffix}"
+                shutil.move(str(file_path), str(season_dir / new_name))
+                logger.info("已归入现有剧集目录: %s → %s/Season %02d/%s",
+                            file_path.name, existing_show_dir.name, season_num, new_name)
                 update_status(task.task_id, "done")
                 return
 
@@ -199,13 +206,15 @@ class TaskQueue:
             if detail.media_type == "movie":
                 self._organize_movie(file_path, detail.title, detail.year)
             elif detail.media_type == "tv":
-                self._organize_tv(file_path, detail.title, detail.year, query.season)
+                self._organize_tv(file_path, detail.title, detail.year, query.season, query.episode)
 
         update_status(task.task_id, "done")
         logger.info("完成: %s (%s) [%s]", detail.title, detail.year, task.task_id[:8])
 
     def _find_show_dir(self, parent: Path, title: str) -> Optional[Path]:
         """在父目录中查找已存在的剧集目录（目录名以 title 开头且含 tvshow.nfo）"""
+        if not parent.exists():
+            return None
         for d in parent.iterdir():
             if d.is_dir() and d.name.startswith(title) and (d / "tvshow.nfo").exists():
                 return d
@@ -234,30 +243,46 @@ class TaskQueue:
 
         logger.info("目录整理完成: %s → %s/ (%s)", file_path.name, target_dir.name, ", ".join(moved))
 
-    def _organize_tv(self, file_path: Path, title: str, year: Optional[int], season: Optional[int]) -> None:
+    def _organize_tv(self, file_path: Path, title: str, year: Optional[int], season: Optional[int], episode: Optional[int]) -> None:
         """
-        将剧集文件整理到标准目录结构：
-          剧集名 (年份)/
-            tvshow.nfo / poster.jpg / fanart.jpg  （仅首次创建时移入）
-            Season 01/
-              S01E01.mkv
+        将剧集文件整理到标准目录结构，处理三种情况：
+        1. 文件在媒体根目录：在根目录创建 '剧集名 (年份)/'
+        2. 文件在同名剧集目录（如 '大宋提刑官/'）：在上一级创建标准目录，清理原目录
+        3. 文件已在标准目录（如 '大宋提刑官 (2005)/'）：直接在内创建 Season 子目录
         """
         year_str = f" ({year})" if year else ""
-        show_dir = file_path.parent / f"{title}{year_str}"
+        standard_name = f"{title}{year_str}"
         season_num = season or 1
+        episode_num = episode or 1
+        new_filename = f"{title} S{season_num:02d}E{episode_num:02d}{file_path.suffix}"
+
+        parent = file_path.parent
+
+        # 情况 3：已在标准目录（目录名以 title 开头且含年份括号格式）
+        if re.match(rf"^{re.escape(title)}\s*\(\d{{4}}\)$", parent.name):
+            show_dir = parent
+        # 情况 2：在同名非标准目录（目录名等于 title，不含年份）
+        elif parent.name == title:
+            show_dir = parent.rename(parent.parent / standard_name)
+            file_path = show_dir / file_path.name  # 目录重命名后更新文件路径
+            logger.info("目录已重命名: %s → %s", title, standard_name)
+        # 情况 1：在媒体根目录或其他目录
+        else:
+            show_dir = parent / standard_name
+            show_dir.mkdir(parents=True, exist_ok=True)
+
         season_dir = show_dir / f"Season {season_num:02d}"
+        season_dir.mkdir(exist_ok=True)
 
-        season_dir.mkdir(parents=True, exist_ok=True)
-
-        # 剧集根目录资产（tvshow.nfo / 海报）：仅首次创建时移入，避免重复移动
+        # 移动剧集根目录资产（仅首次）
         if not (show_dir / "tvshow.nfo").exists():
             for asset in ["tvshow.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
-                src = file_path.parent / asset
+                src = parent / asset
                 if src.exists():
                     shutil.move(str(src), str(show_dir / asset))
 
-        # 视频文件移入 Season 子目录
-        dest = season_dir / file_path.name
-        shutil.move(str(file_path), str(dest))
+        # 移动视频文件并重命名为标准格式
+        shutil.move(str(file_path), str(season_dir / new_filename))
 
-        logger.info("目录整理完成: %s → %s/Season %02d/", file_path.name, show_dir.name, season_num)
+        logger.info("目录整理完成: %s → %s/Season %02d/%s",
+                    file_path.name, show_dir.name, season_num, new_filename)

@@ -44,16 +44,53 @@ class TestTVIdentification:
         """识别标准 S01E01 大写格式"""
         q = identifier.identify("/media/TV/Breaking.Bad.S01E01.mkv")
         assert q.media_type == "tv"
+        assert q.season == 1
+        assert q.episode == 1
 
     def test_lowercase_s01e01(self, identifier):
         """识别 s01e01 小写格式"""
         q = identifier.identify("/media/TV/game.of.thrones.s03e09.mkv")
         assert q.media_type == "tv"
+        assert q.season == 3
+        assert q.episode == 9
 
     def test_1x01_format(self, identifier):
         """识别 1x01 替代格式"""
         q = identifier.identify("/media/TV/Show.1x01.mkv")
         assert q.media_type == "tv"
+        assert q.season == 1
+        assert q.episode == 1
+
+    def test_chinese_season_and_episode(self, identifier):
+        """识别中文 第X季第X集 格式"""
+        q = identifier.identify("/media/大宋提刑官第二季第五集.mp4")
+        assert q.media_type == "tv"
+        assert q.title == "大宋提刑官"
+        assert q.season == 2
+        assert q.episode == 5
+
+    def test_chinese_part_and_episode(self, identifier):
+        """识别中文 第X部-第X集 格式（含分隔符）"""
+        q = identifier.identify("/media/大宋提刑官第一部-第三集.mp4")
+        assert q.media_type == "tv"
+        assert q.title == "大宋提刑官"
+        assert q.season == 1
+        assert q.episode == 3
+
+    def test_chinese_episode_only(self, identifier):
+        """识别只有集号的中文格式，季号默认为 1"""
+        q = identifier.identify("/media/大宋提刑官第12集.mp4")
+        assert q.media_type == "tv"
+        assert q.title == "大宋提刑官"
+        assert q.season == 1
+        assert q.episode == 12
+
+    def test_chinese_episode_word_number(self, identifier):
+        """识别中文数字集号"""
+        q = identifier.identify("/media/大宋提刑官第三集.mp4")
+        assert q.media_type == "tv"
+        assert q.season == 1
+        assert q.episode == 3
 
 
 class TestMusicIdentification:

@@ -76,6 +76,113 @@ class TestEnqueue:
         result = queue.enqueue(str(tmp_path / "movie.mp4"))
         assert result is not None
 
+    def test_enqueue_skips_file_in_season_dir(self, queue, tmp_path):
+        """已在 Season 子目录中的文件应跳过，防止 watchdog 触发循环"""
+        season_dir = tmp_path / "Season 01"
+        season_dir.mkdir()
+        result = queue.enqueue(str(season_dir / "show.mp4"))
+        assert result is None
+
+
+class TestOrganizeMovie:
+    def test_creates_standard_dir_and_moves_files(self, queue, tmp_path):
+        """电影整理：创建 '电影名 (年份)/' 并移入视频和资产"""
+        video = tmp_path / "movie.mp4"
+        video.touch()
+        (tmp_path / "movie.nfo").touch()
+        (tmp_path / "poster.jpg").touch()
+
+        queue._organize_movie(video, "测试电影", 2023)
+
+        target = tmp_path / "测试电影 (2023)"
+        assert target.exists()
+        assert (target / "movie.mp4").exists()
+        assert (target / "movie.nfo").exists()
+        assert (target / "poster.jpg").exists()
+
+    def test_skips_if_target_exists(self, queue, tmp_path):
+        """目标目录已存在时跳过，不重复移动"""
+        video = tmp_path / "movie.mp4"
+        video.touch()
+        (tmp_path / "测试电影 (2023)").mkdir()
+
+        queue._organize_movie(video, "测试电影", 2023)
+        assert video.exists()  # 文件未被移动
+
+
+class TestOrganizeTv:
+    def test_case1_root_dir_creates_show_dir(self, queue, tmp_path):
+        """情况1：文件在媒体根目录，应创建 '剧集名 (年份)/Season 01/'"""
+        video = tmp_path / "大宋提刑官S01E01.mp4"
+        video.touch()
+
+        queue._organize_tv(video, "大宋提刑官", 2005, 1, 1)
+
+        show_dir = tmp_path / "大宋提刑官 (2005)"
+        assert (show_dir / "Season 01" / "大宋提刑官 S01E01.mp4").exists()
+
+    def test_case2_non_standard_dir_renamed(self, queue, tmp_path):
+        """情况2：文件在同名非标准目录，目录应被直接重命名为标准格式"""
+        show_dir = tmp_path / "大宋提刑官"
+        show_dir.mkdir()
+        video = show_dir / "大宋提刑官S01E02.mp4"
+        video.touch()
+
+        queue._organize_tv(video, "大宋提刑官", 2005, 1, 2)
+
+        standard_dir = tmp_path / "大宋提刑官 (2005)"
+        assert standard_dir.exists()
+        assert not (tmp_path / "大宋提刑官").exists()
+        assert (standard_dir / "Season 01" / "大宋提刑官 S01E02.mp4").exists()
+
+    def test_case3_standard_dir_uses_existing(self, queue, tmp_path):
+        """情况3：文件已在标准目录，直接在内创建 Season 子目录"""
+        show_dir = tmp_path / "大宋提刑官 (2005)"
+        show_dir.mkdir()
+        video = show_dir / "大宋提刑官S01E03.mp4"
+        video.touch()
+
+        queue._organize_tv(video, "大宋提刑官", 2005, 1, 3)
+
+        assert (show_dir / "Season 01" / "大宋提刑官 S01E03.mp4").exists()
+
+    def test_show_assets_moved_only_once(self, queue, tmp_path):
+        """tvshow.nfo 等资产只在首次整理时移入，不重复移动"""
+        show_dir = tmp_path / "大宋提刑官 (2005)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").touch()  # 已有 NFO
+
+        video = show_dir / "大宋提刑官S01E04.mp4"
+        video.touch()
+        extra_nfo = show_dir / "tvshow.nfo"
+
+        queue._organize_tv(video, "大宋提刑官", 2005, 1, 4)
+
+        # 原 tvshow.nfo 应仍在 show_dir，不被移走
+        assert extra_nfo.exists()
+
+
+class TestFindShowDir:
+    def test_finds_existing_show_dir(self, queue, tmp_path):
+        """能找到含 tvshow.nfo 的剧集目录"""
+        show_dir = tmp_path / "大宋提刑官 (2005)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").touch()
+
+        result = queue._find_show_dir(tmp_path, "大宋提刑官")
+        assert result == show_dir
+
+    def test_returns_none_if_not_found(self, queue, tmp_path):
+        """不存在匹配目录时返回 None"""
+        result = queue._find_show_dir(tmp_path, "不存在的剧集")
+        assert result is None
+
+    def test_ignores_dir_without_nfo(self, queue, tmp_path):
+        """目录名匹配但无 tvshow.nfo 时不应返回"""
+        (tmp_path / "大宋提刑官 (2005)").mkdir()
+        result = queue._find_show_dir(tmp_path, "大宋提刑官")
+        assert result is None
+
 
 class TestWorkerProcess:
     @pytest.mark.asyncio
