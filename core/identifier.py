@@ -9,10 +9,16 @@ MOVIE_PATTERNS = [
     re.compile(r"^(.+?)[\.\s_](\d{4})(?:[\.\s_]|$)"),          # Movie.Name.2023 / Movie_Name_2023
 ]
 
-# 剧集命名格式正则，匹配到即判定为 tv 类型
-TV_PATTERNS = [
-    re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),  # S01E01 / s01e01
-    re.compile(r"(\d{1,2})x(\d{1,2})"),          # 1x01
+# 剧集命名格式正则，每条正则需有两个捕获组：(季号, 集号)
+# 季号或集号无法提取时用 None 表示
+TV_PATTERNS: list[tuple[re.Pattern, str]] = [
+    # 英文格式
+    (re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),   "se"),   # S01E01
+    (re.compile(r"(\d{1,2})x(\d{1,2})"),           "se"),   # 1x01
+    # 中文格式：第X季第X集 / 第X部第X集
+    (re.compile(r"第\s*(\d+)\s*[季部][^\d]*第\s*(\d+)\s*[集话]"), "se"),
+    # 只有集号：第X集 / 第X话（季号默认1）
+    (re.compile(r"第\s*(\d+)\s*[集话]"),            "e"),    # 只有集号
 ]
 
 MUSIC_EXTENSIONS = {".flac", ".mp3", ".aac", ".wav", ".m4a"}
@@ -53,11 +59,15 @@ class MediaIdentifier:
         name = path.stem  # 去掉扩展名的文件名
 
         # 优先检测剧集特征，避免将剧集误识别为电影
-        for pattern in TV_PATTERNS:
-            if pattern.search(name):
-                # 取集数标记之前的部分作为剧集标题
-                title = pattern.split(name)[0].replace(".", " ").strip()
-                return MediaQuery(title=title, media_type="tv")
+        for pattern, mode in TV_PATTERNS:
+            m = pattern.search(name)
+            if m:
+                title = pattern.split(name)[0].replace(".", " ").strip(" -._")
+                if mode == "se":
+                    season, episode = int(m.group(1)), int(m.group(2))
+                else:  # 只有集号，季号默认 1
+                    season, episode = 1, int(m.group(1))
+                return MediaQuery(title=title, media_type="tv", season=season, episode=episode)
 
         # 尝试电影命名格式，提取标题和年份
         for pattern in MOVIE_PATTERNS:

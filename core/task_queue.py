@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -69,6 +70,11 @@ class TaskQueue:
         if path.suffix.lower() not in self._config.video_extensions:
             return None
 
+        # 已在 Season 子目录中（auto_organize 移动后触发的 watchdog 事件），无条件跳过
+        if re.match(r"^Season\s+\d+$", path.parent.name):
+            logger.debug("跳过（已在 Season 目录）: %s", path.name)
+            return None
+
         # missing_only 策略：已有 NFO 则跳过
         if self._config.scrape_mode == "missing_only":
             if (path.parent / "movie.nfo").exists() or (path.parent / "tvshow.nfo").exists():
@@ -124,9 +130,15 @@ class TaskQueue:
     async def _process(self, task: ScrapeTask) -> None:
         """执行单个任务的完整刮削流程"""
         file_name = Path(task.file_path).name
+        file_path = Path(task.file_path)
+
+        if not file_path.exists():
+            logger.debug("文件已不存在，跳过: %s", file_name)
+            update_status(task.task_id, "failed", error="文件已不存在（可能已被移动）")
+            return
+
         logger.info("开始处理: %s", file_name)
         update_status(task.task_id, "running")
-        file_path = Path(task.file_path)
         output_dir = str(file_path.parent)
 
         # Step 1: 识别
@@ -136,6 +148,18 @@ class TaskQueue:
             update_status(task.task_id, "failed", error="无法识别文件类型")
             return
         logger.debug("识别结果: title=%r, type=%s, year=%s", query.title, query.media_type, query.year)
+
+        # Step 2: 若已有剧集目录（同名 tvshow.nfo），直接移入跳过刮削
+        if query.media_type == "tv" and self._config.auto_organize:
+            existing_show_dir = self._find_show_dir(file_path.parent, query.title)
+            if existing_show_dir:
+                season_num = query.season or 1
+                season_dir = existing_show_dir / f"Season {season_num:02d}"
+                season_dir.mkdir(exist_ok=True)
+                shutil.move(str(file_path), str(season_dir / file_path.name))
+                logger.info("已归入现有剧集目录: %s → %s/Season %02d/", file_path.name, existing_show_dir.name, season_num)
+                update_status(task.task_id, "done")
+                return
 
         # Step 2: 抓取元数据
         logger.debug("抓取元数据: %r", query.title)
@@ -170,18 +194,25 @@ class TaskQueue:
             "media_type": detail.media_type,
         })
 
-        # Step 6: 自动整理目录（仅电影，且配置开启）
-        if self._config.auto_organize and detail.media_type == "movie":
-            self._organize(file_path, detail.title, detail.year)
+        # Step 6: 自动整理目录（配置开启时）
+        if self._config.auto_organize:
+            if detail.media_type == "movie":
+                self._organize_movie(file_path, detail.title, detail.year)
+            elif detail.media_type == "tv":
+                self._organize_tv(file_path, detail.title, detail.year, query.season)
 
         update_status(task.task_id, "done")
         logger.info("完成: %s (%s) [%s]", detail.title, detail.year, task.task_id[:8])
 
-    def _organize(self, file_path: Path, title: str, year: Optional[int]) -> None:
-        """
-        将视频文件及同目录生成的 NFO/图片移入 '电影名 (年份)/' 子目录。
-        目标目录已存在时跳过，避免覆盖。
-        """
+    def _find_show_dir(self, parent: Path, title: str) -> Optional[Path]:
+        """在父目录中查找已存在的剧集目录（目录名以 title 开头且含 tvshow.nfo）"""
+        for d in parent.iterdir():
+            if d.is_dir() and d.name.startswith(title) and (d / "tvshow.nfo").exists():
+                return d
+        return None
+
+    def _organize_movie(self, file_path: Path, title: str, year: Optional[int]) -> None:
+        """将视频文件及同目录生成的 NFO/图片移入 '电影名 (年份)/' 子目录。"""
         year_str = f" ({year})" if year else ""
         target_dir = file_path.parent / f"{title}{year_str}"
 
@@ -192,15 +223,41 @@ class TaskQueue:
         target_dir.mkdir(parents=True)
         moved = []
 
-        # 移动视频文件
         shutil.move(str(file_path), str(target_dir / file_path.name))
         moved.append(file_path.name)
 
-        # 移动同目录生成的资产文件
-        for asset in ["movie.nfo", "tvshow.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
+        for asset in ["movie.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
             src = file_path.parent / asset
             if src.exists():
                 shutil.move(str(src), str(target_dir / asset))
                 moved.append(asset)
 
         logger.info("目录整理完成: %s → %s/ (%s)", file_path.name, target_dir.name, ", ".join(moved))
+
+    def _organize_tv(self, file_path: Path, title: str, year: Optional[int], season: Optional[int]) -> None:
+        """
+        将剧集文件整理到标准目录结构：
+          剧集名 (年份)/
+            tvshow.nfo / poster.jpg / fanart.jpg  （仅首次创建时移入）
+            Season 01/
+              S01E01.mkv
+        """
+        year_str = f" ({year})" if year else ""
+        show_dir = file_path.parent / f"{title}{year_str}"
+        season_num = season or 1
+        season_dir = show_dir / f"Season {season_num:02d}"
+
+        season_dir.mkdir(parents=True, exist_ok=True)
+
+        # 剧集根目录资产（tvshow.nfo / 海报）：仅首次创建时移入，避免重复移动
+        if not (show_dir / "tvshow.nfo").exists():
+            for asset in ["tvshow.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
+                src = file_path.parent / asset
+                if src.exists():
+                    shutil.move(str(src), str(show_dir / asset))
+
+        # 视频文件移入 Season 子目录
+        dest = season_dir / file_path.name
+        shutil.move(str(file_path), str(dest))
+
+        logger.info("目录整理完成: %s → %s/Season %02d/", file_path.name, show_dir.name, season_num)

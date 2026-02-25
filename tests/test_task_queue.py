@@ -101,6 +101,7 @@ class TestWorkerProcess:
                                    video_extensions={".mp4"}),
         )
 
+        (tmp_path / "movie.mp4").touch()
         task = ScrapeTask(
             task_id="test-id", file_path=str(tmp_path / "movie.mp4"),
             status="pending", created_at=datetime.now().isoformat(),

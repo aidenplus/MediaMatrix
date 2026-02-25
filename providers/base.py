@@ -11,7 +11,9 @@ class MediaQuery:
     """
     title: str           # 识别出的媒体标题
     media_type: str      # 媒体类型: "movie" | "tv" | "music"
-    year: Optional[int] = None  # 发行年份，可能为 None（识别失败时）
+    year: Optional[int] = None   # 发行年份，可能为 None（识别失败时）
+    season: Optional[int] = None  # 季号，仅 tv 类型有效
+    episode: Optional[int] = None # 集号，仅 tv 类型有效
     extra: dict = field(default_factory=dict)  # 扩展字段，供特定 Provider 使用
 
 
