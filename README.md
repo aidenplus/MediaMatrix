@@ -16,23 +16,61 @@
 
 ## 快速开始
 
-### Docker（推荐）
+### 第一步：准备配置文件
 
 ```bash
-# 复制配置文件并填入 TMDB API Key
 cp config/settings.example.yaml config/settings.yaml
-
-# 启动（替换媒体库路径）
-MEDIA_PATH=/path/to/media PUID=$(id -u) PGID=$(id -g) docker compose up -d
 ```
 
-容器内媒体路径为 `/media`，在 `settings.yaml` 中配置：
+编辑 `config/settings.yaml`，至少填写以下两项：
+
+**1. TMDB API Key（必填）**
+
+前往 [https://www.themoviedb.org/settings/api](https://www.themoviedb.org/settings/api) 申请（免费），填入：
+
+```yaml
+providers:
+  tmdb:
+    api_key: "你的 API Key"
+```
+
+**2. 媒体库路径**
+
+Docker 用容器内路径（见下方），本地运行用本机实际路径：
 
 ```yaml
 media:
   paths:
-    - /media/Movies
-    - /media/TV Shows
+    - /media/movies   # Docker 路径示例
+    - /media/tv
+```
+
+---
+
+### Docker（推荐）
+
+```bash
+# 设置媒体库路径（替换为你的实际路径）
+export MOVIES_PATH=/path/to/movies
+export TV_PATH=/path/to/tv
+export MUSIC_PATH=/path/to/music
+
+docker compose up -d
+```
+
+也可以在项目根目录创建 `.env` 文件：
+
+```env
+MOVIES_PATH=/path/to/movies
+TV_PATH=/path/to/tv
+MUSIC_PATH=/path/to/music
+TZ=Asia/Shanghai
+```
+
+然后直接运行：
+
+```bash
+docker compose up -d
 ```
 
 ### 本地运行
@@ -40,10 +78,6 @@ media:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-
-cp config/settings.example.yaml config/settings.yaml
-# 编辑 settings.yaml，填入 TMDB API Key 和本地媒体路径
-
 python main.py
 ```
 
