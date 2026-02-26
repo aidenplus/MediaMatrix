@@ -14,8 +14,8 @@ services:
       - ./logs:/app/logs              # 日志
       - ./plugins:/app/plugins        # 插件
       # 媒体库目录，按需添加或删除，容器内路径需与 settings.yaml 中的 media.paths 对应
-      - ${MOVIES_PATH:-./media/movies}:/media/movies
-      - ${TV_PATH:-./media/tv}:/media/tv
-      - ${MUSIC_PATH:-./media/music}:/media/music
+      - ${MOVIES_PATH:-/media/movies}:/media/movies
+      - ${TV_PATH:-/media/tv}:/media/tv
+      - ${MUSIC_PATH:-/media/music}:/media/music
     environment:
       - TZ=${TZ:-Asia/Shanghai}

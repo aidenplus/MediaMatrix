@@ -77,11 +77,19 @@ class TestEnqueue:
         assert result is not None
 
     def test_enqueue_skips_file_in_season_dir(self, queue, tmp_path):
-        """已在 Season 子目录中的文件应跳过，防止 watchdog 触发循环"""
+        """missing_only 模式下，已在 Season 子目录中的文件应跳过，防止 watchdog 触发循环"""
+        queue._config.scrape_mode = "missing_only"
         season_dir = tmp_path / "Season 01"
         season_dir.mkdir()
         result = queue.enqueue(str(season_dir / "show.mp4"))
         assert result is None
+
+    def test_enqueue_overwrite_allows_file_in_season_dir(self, queue, tmp_path):
+        """overwrite 模式下，已在 Season 子目录中的文件应重新入队刮削"""
+        season_dir = tmp_path / "Season 01"
+        season_dir.mkdir()
+        result = queue.enqueue(str(season_dir / "show.mp4"))
+        assert result is not None
 
 
 class TestOrganizeMovie:
