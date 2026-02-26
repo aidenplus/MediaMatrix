@@ -9,8 +9,8 @@ app:
 media:
   # 媒体库根目录，支持配置多个路径（Docker 挂载路径）
   paths:
-    - /media/Movies
-    - /media/TV Shows
+    - /media/movies
+    - /media/tv
   # 刮削策略：
   #   missing_only - 仅处理缺少 NFO 的媒体（推荐）
   #   overwrite    - 强制覆盖已有 NFO

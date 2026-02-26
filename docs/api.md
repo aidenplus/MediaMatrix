@@ -32,7 +32,7 @@ Base URL: `http://localhost:8000`
 
 ```json
 {
-  "paths": ["/media/Movies", "/media/TV Shows"],
+  "paths": ["/media/movies", "/media/tv"],
   "mode": "missing_only"
 }
 ```
@@ -62,7 +62,7 @@ Base URL: `http://localhost:8000`
 # 刮削指定目录（跳过已有 NFO）
 curl -X POST http://localhost:8000/api/scan \
   -H "Content-Type: application/json" \
-  -d '{"paths": ["/media/Movies"]}'
+  -d '{"paths": ["/media/movies"]}'
 
 # 强制重新刮削
 curl -X POST http://localhost:8000/api/scan \
@@ -89,7 +89,7 @@ curl -X POST http://localhost:8000/api/scan \
   "tasks": [
     {
       "task_id": "a1b2c3",
-      "file_path": "/media/Movies/Inception (2010)/Inception.mkv",
+      "file_path": "/media/movies/Inception (2010)/Inception.mkv",
       "status": "done",
       "created_at": "2026-02-26T03:00:00",
       "error": null
