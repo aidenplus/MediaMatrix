@@ -35,14 +35,14 @@ async def trigger_scan(req: ScanRequest, request: Request):
         p = Path(scan_path)
         # 单个文件直接入队
         if p.is_file():
-            task_id = tq.enqueue(str(p))
+            task_id = tq.enqueue(str(p), mode=req.mode)
             if task_id:
                 task_ids.append(task_id)
         # 目录则递归遍历
         elif p.is_dir():
             for file in p.rglob("*"):
                 if file.is_file() and file.suffix.lower() in video_extensions:
-                    task_id = tq.enqueue(str(file))
+                    task_id = tq.enqueue(str(file), mode=req.mode)
                     if task_id:
                         task_ids.append(task_id)
 

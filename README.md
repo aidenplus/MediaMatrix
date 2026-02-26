@@ -59,6 +59,8 @@ python main.py
 
 ## API
 
+详见 [docs/api.md](docs/api.md)。
+
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/status` | 队列状态和 worker 运行状态 |

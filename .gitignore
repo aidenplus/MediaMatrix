@@ -39,9 +39,10 @@ config/settings.yaml
 logs/*
 !logs/.gitkeep
 
-# 文档（README.md 除外）
+# 文档（README.md 和 docs/ 除外）
 *.md
 !README.md
+!docs/*.md
 
 # 媒体库（不上传实际媒体文件）
 /media/

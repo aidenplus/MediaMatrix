@@ -58,10 +58,11 @@ class TaskQueue:
         self._worker_task: Optional[asyncio.Task] = None
         init_db()
 
-    def enqueue(self, file_path: str) -> Optional[str]:
+    def enqueue(self, file_path: str, mode: Optional[str] = None) -> Optional[str]:
         """
         将文件路径推入队列。
         missing_only 模式下，同目录已有 movie.nfo 则跳过。
+        mode 参数可覆盖全局 scrape_mode 配置。
         返回 task_id，跳过时返回 None。
         """
         path = Path(file_path)
@@ -70,8 +71,10 @@ class TaskQueue:
         if path.suffix.lower() not in self._config.video_extensions:
             return None
 
+        effective_mode = mode or self._config.scrape_mode
+
         # missing_only 策略：已整理或已有 NFO 则跳过
-        if self._config.scrape_mode == "missing_only":
+        if effective_mode == "missing_only":
             if re.match(r"^Season\s+\d+$", path.parent.name):
                 logger.debug("跳过（已在 Season 目录）: %s", path.name)
                 return None
