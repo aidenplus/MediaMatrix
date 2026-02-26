@@ -50,3 +50,4 @@ logs/*
 
 # 插件目录（保留目录结构，不上传插件文件）
 /plugins/*
+!plugins/.gitkeep
