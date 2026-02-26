@@ -10,6 +10,7 @@
 - 自动下载 poster.jpg、fanart.jpg、logo.png
 - 支持 `missing_only` / `overwrite` 两种刮削策略
 - `auto_organize`：刮削完成后自动整理为 `电影名 (年份)/` 子目录
+- 多数据源支持，按优先级自动降级：TMDB → TVDb → OMDb
 - 插件系统：支持 `.py` 源码插件和 Cython 编译的 `.so` 二进制插件
 - REST API：手动触发扫描、查询任务状态
 
@@ -53,8 +54,11 @@ python main.py
 | `media.paths` | 媒体库根目录，支持多个 |
 | `media.scrape_mode` | `missing_only`（推荐）或 `overwrite` |
 | `media.auto_organize` | 自动整理目录，默认 `false` |
-| `providers.tmdb.api_key` | [TMDB API Key](https://www.themoviedb.org/settings/api) |
+| `providers.tmdb.api_key` | [TMDB API Key](https://www.themoviedb.org/settings/api)，必填 |
 | `providers.tmdb.language` | 元数据语言，默认 `zh-CN` |
+| `providers.tvdb.api_key` | [TVDb API Key](https://thetvdb.com/api-information)，可选，剧集备用数据源 |
+| `providers.tvdb.language` | TVDb 元数据语言，默认 `zho` |
+| `providers.omdb.api_key` | [OMDb API Key](https://www.omdbapi.com/apikey.aspx)，可选，最终备用数据源（英文） |
 | `concurrency.max_requests` | 最大并发请求数，默认 `3` |
 
 ## API
