@@ -70,13 +70,14 @@ class TaskQueue:
         if path.suffix.lower() not in self._config.video_extensions:
             return None
 
-        # 已在 Season 子目录中（auto_organize 移动后触发的 watchdog 事件），无条件跳过
-        if re.match(r"^Season\s+\d+$", path.parent.name):
-            logger.debug("跳过（已在 Season 目录）: %s", path.name)
-            return None
-
-        # missing_only 策略：已有 NFO 则跳过
+        # missing_only 策略：已整理或已有 NFO 则跳过
         if self._config.scrape_mode == "missing_only":
+            if re.match(r"^Season\s+\d+$", path.parent.name):
+                logger.debug("跳过（已在 Season 目录）: %s", path.name)
+                return None
+            if re.match(r"^.+\s*\(\d{4}\)$", path.parent.name):
+                logger.debug("跳过（已在整理目录）: %s", path.name)
+                return None
             if (path.parent / "movie.nfo").exists() or (path.parent / "tvshow.nfo").exists():
                 logger.debug("跳过（已有 NFO）: %s", path.name)
                 return None
@@ -178,20 +179,27 @@ class TaskQueue:
         logger.info("抓取成功: %s (%s) [via %s]", detail.title, detail.year, detail.provider)
 
         # Step 3: 写 NFO
+        # TV 文件若已在 Season 子目录，NFO/图片应写到剧集根目录（上一级）
+        if detail.media_type == "tv" and re.match(r"^Season\s+\d+$", file_path.parent.name):
+            tv_output_dir = str(file_path.parent.parent)
+        else:
+            tv_output_dir = output_dir
+
         if detail.media_type == "movie":
             self._nfo_writer.write_movie_nfo(detail, output_dir)
         elif detail.media_type == "tv":
-            self._nfo_writer.write_tv_nfo(detail, output_dir)
-        logger.debug("NFO 已生成: %s", output_dir)
+            self._nfo_writer.write_tv_nfo(detail, tv_output_dir)
+        logger.debug("NFO 已生成: %s", tv_output_dir if detail.media_type == "tv" else output_dir)
 
         # Step 4: 下载图片
+        img_dir = tv_output_dir if detail.media_type == "tv" else output_dir
         if detail.poster_url:
-            self._image_downloader.download_poster(detail.poster_url, output_dir)
+            self._image_downloader.download_poster(detail.poster_url, img_dir)
         if detail.fanart_url:
-            self._image_downloader.download_fanart(detail.fanart_url, output_dir)
+            self._image_downloader.download_fanart(detail.fanart_url, img_dir)
         if detail.logo_url:
-            self._image_downloader.download_logo(detail.logo_url, output_dir)
-        logger.debug("图片已下载: %s", output_dir)
+            self._image_downloader.download_logo(detail.logo_url, img_dir)
+        logger.debug("图片已下载: %s", img_dir)
 
         # Step 5: 触发插件 after_scraped hook
         self._plugin_engine.trigger("after_scraped", media_item={
@@ -223,7 +231,13 @@ class TaskQueue:
     def _organize_movie(self, file_path: Path, title: str, year: Optional[int]) -> None:
         """将视频文件及同目录生成的 NFO/图片移入 '电影名 (年份)/' 子目录。"""
         year_str = f" ({year})" if year else ""
-        target_dir = file_path.parent / f"{title}{year_str}"
+        standard_name = f"{title}{year_str}"
+        target_dir = file_path.parent / standard_name
+
+        # 已在标准目录中（防御性兜底）
+        if file_path.parent.name == standard_name:
+            logger.debug("已在标准目录，跳过整理: %s", file_path.parent.name)
+            return
 
         if target_dir.exists():
             logger.debug("目标目录已存在，跳过整理: %s", target_dir.name)
@@ -257,6 +271,11 @@ class TaskQueue:
         new_filename = f"{title} S{season_num:02d}E{episode_num:02d}{file_path.suffix}"
 
         parent = file_path.parent
+
+        # 情况 0：已在 Season 子目录中，跳过整理（overwrite 模式重新刮削但不移动）
+        if re.match(r"^Season\s+\d+$", parent.name):
+            logger.debug("已在 Season 目录，跳过整理: %s", file_path.name)
+            return
 
         # 情况 3：已在标准目录（目录名以 title 开头且含年份括号格式）
         if re.match(rf"^{re.escape(title)}\s*\(\d{{4}}\)$", parent.name):
