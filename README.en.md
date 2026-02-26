@@ -2,6 +2,8 @@
 
 [中文](./README.md) | English
 
+![version](https://img.shields.io/badge/version-1.0.0-blue) ![license](https://img.shields.io/badge/license-MIT-green) ![tests](https://img.shields.io/badge/tests-115%20passed-brightgreen) ![python](https://img.shields.io/badge/python-3.10+-blue) ![docker](https://img.shields.io/badge/docker-ready-blue)
+
 ```
 ██╗    ██╗                      ██╗    ██╗
 ███╗  ███║           _ _        ███╗  ███║         _       _
