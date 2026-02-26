@@ -33,6 +33,8 @@
 ### 第一步：准备配置文件
 
 ```bash
+git clone https://github.com/aidenplus/MediaMatrix.git
+cd MediaMatrix
 cp config/settings.example.yaml config/settings.yaml
 ```
 
@@ -48,7 +50,7 @@ providers:
     api_key: "你的 API Key"
 ```
 
-**2. 媒体库路径**
+**2. 媒体库路径（可选）**
 
 Docker 用容器内路径（见下方），本地运行用本机实际路径：
 
@@ -61,23 +63,20 @@ media:
 
 ---
 
-### Docker（推荐）
+### Docker部署（推荐）
+
+#### 设置宿主机媒体库路径（替换为你的实际路径）
 
 ```bash
-# 设置媒体库路径（替换为你的实际路径）
 export MOVIES_PATH=/path/to/movies
 export TV_PATH=/path/to/tv
-export MUSIC_PATH=/path/to/music
-
-docker compose up -d
 ```
 
-也可以在项目根目录创建 `.env` 文件：
+也可以在项目根目录创建 `.env` 文件（推荐）：
 
 ```env
 MOVIES_PATH=/path/to/movies
 TV_PATH=/path/to/tv
-MUSIC_PATH=/path/to/music
 TZ=Asia/Shanghai
 ```
 
@@ -87,9 +86,19 @@ TZ=Asia/Shanghai
 docker compose up -d
 ```
 
-### 本地运行
+#### 代码更新
 
 ```bash
+cd MediaMatrix
+git pull
+docker compose up -d --build
+````
+
+### 代码本地运行
+
+```bash
+git clone https://github.com/aidenplus/MediaMatrix.git
+cd MediaMatrix
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
