@@ -92,6 +92,13 @@ class TestTVIdentification:
         assert q.season == 1
         assert q.episode == 3
 
+    def test_mixed_writes_for_season_and_episode(self, identifier):
+        """识别季号和集号混合写法"""
+        q = identifier.identify("/media/大宋提刑官S01第四集.MP4")
+        assert q.media_type == "tv"
+        assert q.season == 1
+        assert q.episode == 4
+
 
 class TestMusicIdentification:
     """音乐文件识别测试（通过扩展名判断）"""

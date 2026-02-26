@@ -1,5 +1,8 @@
 from typing import Optional
+import logging
 from .base import BaseProvider, MediaQuery, MediaDetail
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderRegistry:
@@ -36,10 +39,13 @@ class ProviderRegistry:
             try:
                 results = provider.search(query)
                 if not results:
+                    logger.debug("Provider %s 无结果: %r", provider.name, query.title)
                     continue
-                # 取搜索结果第一条（相关度最高）获取详情
-                return provider.get_detail(results[0].provider_id)
+                detail = provider.get_detail(results[0].provider_id)
+                logger.debug("使用数据源: %s", provider.name)
+                return detail
             except Exception as e:
+                logger.warning("Provider %s 失败，尝试下一个: %s", provider.name, e)
                 last_error = e
                 continue
         if last_error:

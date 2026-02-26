@@ -27,12 +27,15 @@ _NUM = rf"(?:\d+|{_CN})"
 # 季号或集号无法提取时用 None 表示
 TV_PATTERNS: list[tuple[re.Pattern, str]] = [
     # 英文格式
-    (re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),                          "se"),  # S01E01
-    (re.compile(r"(\d{1,2})x(\d{1,2})"),                                  "se"),  # 1x01
+    (re.compile(r"[Ss](\d{1,2})[Ee](\d{1,2})"),                              "se"),  # S01E01
+    (re.compile(r"(\d{1,2})x(\d{1,2})"),                                      "se"),  # 1x01
+    # 混合格式：S01第四集（英文季号 + 中文集号，需在纯季号匹配之前）
+    (re.compile(rf"[Ss](\d{{1,2}})[^Ee\d]*第\s*({_NUM})\s*[集话]"),           "se"),
+    (re.compile(r"[Ss](\d{1,2})(?![Ee\d])"),                                  "s"),   # S01（无集号）
     # 中文格式：第X季/部 + 第X集/话（支持中文数字，中间允许任意分隔符）
-    (re.compile(rf"第\s*({_NUM})\s*[季部][^第]*第\s*({_NUM})\s*[集话]"),  "se"),
+    (re.compile(rf"第\s*({_NUM})\s*[季部][^第]*第\s*({_NUM})\s*[集话]"),      "se"),
     # 只有集号：第X集/话（季号默认1）
-    (re.compile(rf"第\s*({_NUM})\s*[集话]"),                              "e"),
+    (re.compile(rf"第\s*({_NUM})\s*[集话]"),                                  "e"),
 ]
 
 MUSIC_EXTENSIONS = {".flac", ".mp3", ".aac", ".wav", ".m4a"}
@@ -79,6 +82,8 @@ class MediaIdentifier:
                 title = pattern.split(name)[0].replace(".", " ").strip(" -._")
                 if mode == "se":
                     season, episode = _parse_num(m.group(1)), _parse_num(m.group(2))
+                elif mode == "s":  # 只有季号，集号为 None
+                    season, episode = _parse_num(m.group(1)), None
                 else:  # 只有集号，季号默认 1
                     season, episode = 1, _parse_num(m.group(1))
                 return MediaQuery(title=title, media_type="tv", season=season, episode=episode)

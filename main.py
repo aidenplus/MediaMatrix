@@ -17,6 +17,8 @@ from core.plugin_engine import PluginEngine
 from core.task_queue import TaskQueue, TaskQueueConfig
 from providers.registry import ProviderRegistry
 from providers.tmdb import TMDBProvider
+from providers.tvdb import TVDbProvider
+from providers.omdb import OMDbProvider
 
 # 加载配置文件
 CONFIG_PATH = Path(__file__).parent / "config" / "settings.yaml"
@@ -37,6 +39,19 @@ registry.register(TMDBProvider(
     api_key=config["providers"]["tmdb"]["api_key"],
     language=config["providers"]["tmdb"]["language"],
 ))
+
+# TVDb 为可选数据源，api_key 为空时跳过注册
+tvdb_key = config.get("providers", {}).get("tvdb", {}).get("api_key", "")
+if tvdb_key:
+    registry.register(TVDbProvider(
+        api_key=tvdb_key,
+        language=config["providers"]["tvdb"].get("language", "zho"),
+    ))
+
+# OMDb 为可选数据源，api_key 为空时跳过注册
+omdb_key = config.get("providers", {}).get("omdb", {}).get("api_key", "")
+if omdb_key:
+    registry.register(OMDbProvider(api_key=omdb_key))
 
 # 初始化核心模块
 video_extensions = set(config["media"]["video_extensions"])

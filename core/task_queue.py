@@ -175,7 +175,7 @@ class TaskQueue:
             logger.warning("未找到匹配元数据: %r", query.title)
             update_status(task.task_id, "failed", error="未找到匹配的元数据")
             return
-        logger.info("抓取成功: %s (%s)", detail.title, detail.year)
+        logger.info("抓取成功: %s (%s) [via %s]", detail.title, detail.year, detail.provider)
 
         # Step 3: 写 NFO
         if detail.media_type == "movie":
