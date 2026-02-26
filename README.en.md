@@ -33,6 +33,8 @@ Automated media scraping tool. Scans local video files, fetches metadata, and ge
 ### Step 1: Prepare config file
 
 ```bash
+git clone https://github.com/aidenplus/MediaMatrix.git
+cd MediaMatrix
 cp config/settings.example.yaml config/settings.yaml
 ```
 
@@ -48,7 +50,7 @@ providers:
     api_key: "your_api_key"
 ```
 
-**2. Media library paths**
+**2. Media library paths (optional)**
 
 Use container paths for Docker (see below), or local paths for native runs:
 
@@ -63,12 +65,18 @@ media:
 
 ### Docker (recommended)
 
-Create a `.env` file in the project root:
+#### Set media library paths (replace with your actual paths)
+
+```bash
+export MOVIES_PATH=/path/to/movies
+export TV_PATH=/path/to/tv
+```
+
+Or create a `.env` file in the project root (recommended):
 
 ```env
 MOVIES_PATH=/path/to/movies
 TV_PATH=/path/to/tv
-MUSIC_PATH=/path/to/music
 TZ=Asia/Shanghai
 ```
 
@@ -78,9 +86,19 @@ Then start:
 docker compose up -d
 ```
 
+#### Update to latest version
+
+```bash
+cd MediaMatrix
+git pull
+docker compose up -d --build
+```
+
 ### Local
 
 ```bash
+git clone https://github.com/aidenplus/MediaMatrix.git
+cd MediaMatrix
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python main.py
