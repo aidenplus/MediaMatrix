@@ -17,6 +17,9 @@ from core.task_store import ScrapeTask, init_db, insert_task, update_status
 
 logger = logging.getLogger(__name__)
 
+# 下载中的临时文件扩展名，跳过不处理
+_TEMP_EXTENSIONS = {".xltd", ".td", ".downloading", ".part", ".crdownload", ".tmp"}
+
 
 @dataclass
 class TaskQueueConfig:
@@ -66,6 +69,10 @@ class TaskQueue:
         返回 task_id，跳过时返回 None。
         """
         path = Path(file_path)
+
+        # 过滤隐藏文件和临时文件
+        if path.name.startswith(".") or path.suffix.lower() in _TEMP_EXTENSIONS:
+            return None
 
         # 过滤非媒体文件
         if path.suffix.lower() not in self._config.video_extensions:
