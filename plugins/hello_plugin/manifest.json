@@ -1,0 +1,6 @@
+{
+  "id": "com.example.hello_plugin",
+  "version": "1.0.0",
+  "name": "Hello Plugin",
+  "description": "最小示例插件，用于验证插件加载机制"
+}
