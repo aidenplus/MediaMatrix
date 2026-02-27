@@ -19,6 +19,7 @@ from providers.registry import ProviderRegistry
 from providers.tmdb import TMDBProvider
 from providers.tvdb import TVDbProvider
 from providers.omdb import OMDbProvider
+from providers.llm import LLMProvider
 
 # 加载配置文件
 CONFIG_PATH = Path(__file__).parent / "config" / "settings.yaml"
@@ -52,6 +53,16 @@ if tvdb_key:
 omdb_key = config.get("providers", {}).get("omdb", {}).get("api_key", "")
 if omdb_key:
     registry.register(OMDbProvider(api_key=omdb_key))
+
+# LLM 为可选兜底数据源，api_key 为空时跳过注册
+llm_cfg = config.get("providers", {}).get("llm", {})
+llm_key = llm_cfg.get("api_key", "")
+if llm_key:
+    registry.register(LLMProvider(
+        api_key=llm_key,
+        model=llm_cfg.get("model", "gpt-4o-mini"),
+        base_url=llm_cfg.get("base_url", "https://api.openai.com/v1"),
+    ))
 
 # 初始化核心模块
 video_extensions = set(config["media"]["video_extensions"])
