@@ -34,6 +34,10 @@ media:
     - .m4a
 
 providers:
+  # 各 Provider 默认优先级：tmdb=1, tvdb=2, omdb=3, llm=99
+  # 可在每个 Provider 下添加 priority 字段覆盖默认值，数字越小越优先
+  # 注意：调整某个 Provider 的优先级时，需同步调整其他 Provider 避免冲突
+  # 例如将 llm 提升到 tvdb 之前：设 llm priority: 2，tvdb priority: 3
   tmdb:
     # TMDB API Key，申请地址：https://www.themoviedb.org/settings/api
     api_key: ""
@@ -49,6 +53,13 @@ providers:
     # OMDb API Key，申请地址：https://www.omdbapi.com/apikey.aspx
     # 留空则不启用 OMDb，基于 IMDB 数据，免费 tier 每天 1000 次
     api_key: ""
+  llm:
+    # LLM 兜底数据源，所有常规 Provider 失败后触发，留空则不启用
+    # 推荐百度千帆 ERNIE，支持实时联网搜索，对中文冷门内容识别效果好
+    api_key: ""
+    base_url: "https://qianfan.baidubce.com/v2"
+    model: "ernie-4.5-turbo-128k"
+    # priority: 2  # 取消注释可将 LLM 提升到第二优先级（仅次于 TMDB）
 
 plugins:
   # 插件目录，支持 .py 源码插件和 .so 二进制插件

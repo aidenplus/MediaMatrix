@@ -36,33 +36,43 @@ logger = logging.getLogger(__name__)
 # 注册内置 Provider
 # 音乐 Provider（如 MusicBrainz）由对应插件在 on_init hook 中自行注册
 registry = ProviderRegistry()
-registry.register(TMDBProvider(
-    api_key=config["providers"]["tmdb"]["api_key"],
-    language=config["providers"]["tmdb"]["language"],
-))
+
+tmdb_cfg = config["providers"]["tmdb"]
+tmdb = TMDBProvider(api_key=tmdb_cfg["api_key"], language=tmdb_cfg["language"])
+if "priority" in tmdb_cfg:
+    tmdb.priority = tmdb_cfg["priority"]
+registry.register(tmdb)
 
 # TVDb 为可选数据源，api_key 为空时跳过注册
-tvdb_key = config.get("providers", {}).get("tvdb", {}).get("api_key", "")
+tvdb_cfg = config.get("providers", {}).get("tvdb", {})
+tvdb_key = tvdb_cfg.get("api_key", "")
 if tvdb_key:
-    registry.register(TVDbProvider(
-        api_key=tvdb_key,
-        language=config["providers"]["tvdb"].get("language", "zho"),
-    ))
+    tvdb = TVDbProvider(api_key=tvdb_key, language=tvdb_cfg.get("language", "zho"))
+    if "priority" in tvdb_cfg:
+        tvdb.priority = tvdb_cfg["priority"]
+    registry.register(tvdb)
 
 # OMDb 为可选数据源，api_key 为空时跳过注册
-omdb_key = config.get("providers", {}).get("omdb", {}).get("api_key", "")
+omdb_cfg = config.get("providers", {}).get("omdb", {})
+omdb_key = omdb_cfg.get("api_key", "")
 if omdb_key:
-    registry.register(OMDbProvider(api_key=omdb_key))
+    omdb = OMDbProvider(api_key=omdb_key)
+    if "priority" in omdb_cfg:
+        omdb.priority = omdb_cfg["priority"]
+    registry.register(omdb)
 
 # LLM 为可选兜底数据源，api_key 为空时跳过注册
 llm_cfg = config.get("providers", {}).get("llm", {})
 llm_key = llm_cfg.get("api_key", "")
 if llm_key:
-    registry.register(LLMProvider(
+    llm = LLMProvider(
         api_key=llm_key,
         model=llm_cfg.get("model", "gpt-4o-mini"),
         base_url=llm_cfg.get("base_url", "https://api.openai.com/v1"),
-    ))
+    )
+    if "priority" in llm_cfg:
+        llm.priority = llm_cfg["priority"]
+    registry.register(llm)
 
 # 初始化核心模块
 video_extensions = set(config["media"]["video_extensions"])
