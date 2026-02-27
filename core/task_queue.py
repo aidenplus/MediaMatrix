@@ -201,14 +201,15 @@ class TaskQueue:
             self._nfo_writer.write_tv_nfo(detail, tv_output_dir)
         logger.debug("NFO 已生成: %s", tv_output_dir if detail.media_type == "tv" else output_dir)
 
-        # Step 4: 下载图片
+        # Step 4: 下载图片（overwrite 模式强制重新下载，missing_only 跳过已存在的文件）
         img_dir = tv_output_dir if detail.media_type == "tv" else output_dir
+        overwrite_img = self._config.scrape_mode == "overwrite"
         if detail.poster_url:
-            self._image_downloader.download_poster(detail.poster_url, img_dir)
+            self._image_downloader.download_poster(detail.poster_url, img_dir, overwrite=overwrite_img)
         if detail.fanart_url:
-            self._image_downloader.download_fanart(detail.fanart_url, img_dir)
+            self._image_downloader.download_fanart(detail.fanart_url, img_dir, overwrite=overwrite_img)
         if detail.logo_url:
-            self._image_downloader.download_logo(detail.logo_url, img_dir)
+            self._image_downloader.download_logo(detail.logo_url, img_dir, overwrite=overwrite_img)
         logger.debug("图片已下载: %s", img_dir)
 
         # Step 5: 触发插件 after_scraped hook

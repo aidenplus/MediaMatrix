@@ -15,24 +15,25 @@ class ImageDownloader:
     def __init__(self):
         self._client = httpx.Client(timeout=30)
 
-    def download_poster(self, url: str, output_dir: str) -> Optional[str]:
+    def download_poster(self, url: str, output_dir: str, overwrite: bool = False) -> Optional[str]:
         """下载海报，保存为 poster.jpg"""
-        return self._download(url, Path(output_dir) / "poster.jpg")
+        return self._download(url, Path(output_dir) / "poster.jpg", overwrite=overwrite)
 
-    def download_fanart(self, url: str, output_dir: str) -> Optional[str]:
+    def download_fanart(self, url: str, output_dir: str, overwrite: bool = False) -> Optional[str]:
         """下载背景剧照，保存为 fanart.jpg"""
-        return self._download(url, Path(output_dir) / "fanart.jpg")
+        return self._download(url, Path(output_dir) / "fanart.jpg", overwrite=overwrite)
 
-    def download_logo(self, url: str, output_dir: str) -> Optional[str]:
+    def download_logo(self, url: str, output_dir: str, overwrite: bool = False) -> Optional[str]:
         """下载透明 Logo，保存为 logo.png"""
-        return self._download(url, Path(output_dir) / "logo.png")
+        return self._download(url, Path(output_dir) / "logo.png", overwrite=overwrite)
 
-    def _download(self, url: str, dest: Path) -> Optional[str]:
+    def _download(self, url: str, dest: Path, overwrite: bool = False) -> Optional[str]:
         """
         执行实际下载，失败时静默返回 None，不影响主流程。
-        TODO: 增加重试机制（指数退避）
-        TODO: 支持 missing_only 策略（文件已存在时跳过下载）
+        overwrite=False 时文件已存在则跳过。
         """
+        if not overwrite and dest.exists():
+            return str(dest)
         try:
             resp = self._client.get(url)
             resp.raise_for_status()

@@ -39,11 +39,13 @@ class MediaScanner:
     4. stop() 停止监控（应在应用关闭时调用）
     """
 
-    def __init__(self, on_file: Callable[[str], None]):
+    def __init__(self, on_file: Callable[[str], None], media_extensions: set[str] = None):
         """
         :param on_file: 发现新文件时的回调函数，参数为文件绝对路径
+        :param media_extensions: 需要处理的文件扩展名集合，None 表示不过滤
         """
         self._on_file = on_file
+        self._media_extensions = media_extensions
         self._observer = Observer()
         self.watch_paths: list[str] = []
 
@@ -68,13 +70,13 @@ class MediaScanner:
 
     def scan_existing(self) -> list[str]:
         """
-        扫描所有监控目录中已存在的文件，返回文件路径列表。
+        扫描所有监控目录中已存在的媒体文件，返回文件路径列表。
         用于应用启动时的全量刮削（配合 missing_only 策略避免重复处理）。
-        TODO: 增加媒体文件扩展名过滤
         """
         files = []
         for path in self.watch_paths:
             for p in Path(path).rglob("*"):
                 if p.is_file():
-                    files.append(str(p))
+                    if self._media_extensions is None or p.suffix.lower() in self._media_extensions:
+                        files.append(str(p))
         return files
