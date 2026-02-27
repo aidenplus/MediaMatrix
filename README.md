@@ -24,7 +24,8 @@
 - 自动下载 poster.jpg、fanart.jpg、logo.png
 - 支持 `missing_only` / `overwrite` 两种刮削策略
 - `auto_organize`：刮削完成后自动整理为 `电影名 (年份)/` 子目录
-- 多数据源支持，按优先级自动降级：TMDB → TVDb → OMDb
+- 多数据源支持，按优先级自动降级：TMDB → TVDb → OMDb → LLM 兜底
+- **LLM 兜底刮削**：所有数据源均失败时，调用 LLM 识别冷门内容（推荐使用百度千帆 ERNIE，支持实时联网搜索）
 - 插件系统：支持 `.py` 源码插件和 Cython 编译的 `.so` 二进制插件
 - REST API：手动触发扫描、查询任务状态
 
@@ -116,7 +117,35 @@ python main.py
 | `providers.tvdb.api_key` | [TVDb API Key](https://thetvdb.com/api-information)，可选，剧集备用数据源 |
 | `providers.tvdb.language` | TVDb 元数据语言，默认 `zho` |
 | `providers.omdb.api_key` | [OMDb API Key](https://www.omdbapi.com/apikey.aspx)，可选，最终备用数据源（英文） |
+| `providers.llm.api_key` | LLM 兜底数据源 API Key，可选，留空则不启用 |
+| `providers.llm.base_url` | LLM 接口地址，兼容任意 OpenAI 格式服务 |
+| `providers.llm.model` | 使用的模型名称 |
 | `concurrency.max_requests` | 最大并发请求数，默认 `3` |
+
+### LLM 兜底刮削
+
+当 TMDB、TVDb、OMDb 均无法识别某个媒体文件时，MediaMatrix 会将文件名发送给 LLM，由模型生成元数据作为最后兜底。
+
+**推荐使用百度千帆 ERNIE 系列模型**，因为它内置实时百度搜索能力，对中文冷门影视（如老剧、短片、纪录片）的识别效果显著优于纯离线模型。
+
+```yaml
+providers:
+  llm:
+    api_key: "你的千帆 API Key"
+    base_url: "https://qianfan.baidubce.com/v2"
+    model: "ernie-4.5-turbo-128k"
+```
+
+也支持其他兼容 OpenAI 格式的服务：
+
+| 服务 | base_url | 推荐模型 |
+|------|----------|---------|
+| 百度千帆（推荐）| `https://qianfan.baidubce.com/v2` | `ernie-4.5-turbo-128k` |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| 本地 Ollama | `http://localhost:11434/v1` | `qwen2.5` |
+
+> 注意：LLM 生成的元数据准确性不保证，适合作为冷门内容的兜底方案。`api_key` 留空则不启用此功能。
 
 ## API
 
