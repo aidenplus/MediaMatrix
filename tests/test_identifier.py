@@ -99,6 +99,26 @@ class TestTVIdentification:
         assert q.season == 1
         assert q.episode == 4
 
+    def test_e_only_format(self, identifier):
+        """识别纯 E01 格式（无 S 前缀），季号默认为 1"""
+        q = identifier.identify("/media/电视剧/大宋提刑官/大宋提刑官E01.MP4")
+        assert q.media_type == "tv"
+        assert q.title == "大宋提刑官"
+        assert q.season == 1
+        assert q.episode == 1
+
+    def test_ep_format(self, identifier):
+        """识别 EP01 格式（无 S 前缀），季号默认为 1"""
+        q = identifier.identify("/media/TV/SomeShow.EP12.mkv")
+        assert q.media_type == "tv"
+        assert q.season == 1
+        assert q.episode == 12
+
+    def test_e_format_does_not_match_inline_letter(self, identifier):
+        """Se7en 中的 'e7' 不应被误识别为剧集格式"""
+        q = identifier.identify("/media/Movies/Se7en.mkv")
+        assert q.media_type == "movie"
+
 
 class TestMusicIdentification:
     """音乐文件识别测试（通过扩展名判断）"""
