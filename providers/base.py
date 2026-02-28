@@ -51,6 +51,22 @@ class MediaDetail:
     extra: dict = field(default_factory=dict)  # 扩展字段，如 {"tmdb_id": "157336"}
 
 
+@dataclass
+class EpisodeDetail:
+    """
+    Provider.get_episode_detail() 返回的单集元数据，用于生成 S01E01.nfo。
+    各字段均可为 None，调用方需做空值处理。
+    """
+    title: Optional[str]           # 单集标题
+    overview: Optional[str]        # 单集简介
+    air_date: Optional[str]        # 播出日期，格式 YYYY-MM-DD
+    rating: Optional[float]        # 单集评分
+    still_url: Optional[str]       # 单集剧照 URL（区别于剧集海报）
+    season: int                    # 季号
+    episode: int                   # 集号
+    extra: dict = field(default_factory=dict)
+
+
 class BaseProvider(ABC):
     """
     所有数据源 Provider 的抽象基类。
@@ -70,3 +86,13 @@ class BaseProvider(ABC):
     def get_detail(self, provider_id: str) -> MediaDetail:
         """根据 provider_id（格式: media_type:id）获取完整元数据"""
         ...
+
+    def get_episode_detail(self, provider_id: str, season: int, episode: int) -> Optional["EpisodeDetail"]:
+        """
+        获取单集元数据，用于生成 S01E01.nfo。
+        默认返回 None，支持单集数据的 Provider（如 TMDB、TVDb）需覆盖此方法。
+
+        TODO: TMDB 实现 - 调用 /tv/{series_id}/season/{season}/episode/{episode}
+        TODO: TVDb 实现 - 调用对应单集接口
+        """
+        return None

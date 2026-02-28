@@ -1,6 +1,6 @@
 from typing import Optional
 import logging
-from .base import BaseProvider, MediaQuery, MediaDetail
+from .base import BaseProvider, MediaQuery, MediaDetail, EpisodeDetail
 
 logger = logging.getLogger(__name__)
 
@@ -50,4 +50,16 @@ class ProviderRegistry:
                 continue
         if last_error:
             raise last_error
+        return None
+
+    def scrape_episode(self, provider_id: str, season: int, episode: int) -> Optional[EpisodeDetail]:
+        """
+        调用成功刮削剧集时所用的 Provider 获取单集详情。
+        provider_id 为 scrape() 返回的 MediaDetail.provider_id，用于定位对应 Provider。
+
+        TODO: 实现单集详情获取逻辑
+        - 从 provider_id 解析出 Provider 名称
+        - 找到对应 Provider 并调用 get_episode_detail()
+        - 返回 EpisodeDetail 或 None
+        """
         return None

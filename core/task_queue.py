@@ -199,6 +199,14 @@ class TaskQueue:
             self._nfo_writer.write_movie_nfo(detail, output_dir)
         elif detail.media_type == "tv":
             self._nfo_writer.write_tv_nfo(detail, tv_output_dir)
+            # TODO: 生成单集 NFO（S01E01.nfo）
+            # 需要 ProviderRegistry 实现 scrape_episode()，当前返回 None 为占位
+            # episode_detail = await self._scraper.scrape_episode(
+            #     detail.provider_id, query.season or 1, query.episode or 1
+            # )
+            # self._nfo_writer.write_episode_nfo(
+            #     detail, output_dir, query.season or 1, query.episode or 1, episode_detail
+            # )
         logger.debug("NFO 已生成: %s", tv_output_dir if detail.media_type == "tv" else output_dir)
 
         # Step 4: 下载图片（overwrite 模式强制重新下载，missing_only 跳过已存在的文件）

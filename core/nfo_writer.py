@@ -1,6 +1,7 @@
 from pathlib import Path
 from xml.etree.ElementTree import Element, SubElement, ElementTree, indent
-from providers.base import MediaDetail
+from providers.base import MediaDetail, EpisodeDetail
+from typing import Optional
 
 
 class NFOWriter:
@@ -27,12 +28,28 @@ class NFOWriter:
         return self._save(root, Path(output_dir) / "tvshow.nfo")
 
     def write_episode_nfo(self, detail: MediaDetail, output_dir: str,
-                          season: int, episode: int) -> str:
-        """生成单集 NFO，根标签为 <episodedetails>，文件名格式 S01E01.nfo"""
+                          season: int, episode: int,
+                          episode_detail: Optional[EpisodeDetail] = None) -> str:
+        """
+        生成单集 NFO，根标签为 <episodedetails>，文件名格式 S01E01.nfo。
+        若提供 episode_detail，则用单集专属字段（标题、简介、评分、播出日期）覆盖剧集通用字段。
+        """
         root = Element("episodedetails")
         self._fill_common(root, detail)
         SubElement(root, "season").text = str(season)
         SubElement(root, "episode").text = str(episode)
+
+        # TODO: 用单集专属字段覆盖通用字段
+        # if episode_detail:
+        #     if episode_detail.title:
+        #         root.find("title").text = episode_detail.title
+        #     if episode_detail.overview:
+        #         root.find("plot").text = episode_detail.overview
+        #     if episode_detail.rating is not None:
+        #         root.find("rating").text = str(episode_detail.rating)
+        #     if episode_detail.air_date:
+        #         SubElement(root, "aired").text = episode_detail.air_date
+
         filename = f"S{season:02d}E{episode:02d}.nfo"
         return self._save(root, Path(output_dir) / filename)
 
