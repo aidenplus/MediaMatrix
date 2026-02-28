@@ -248,16 +248,30 @@ class TaskQueue:
         return None
 
     def _organize_movie(self, file_path: Path, title: str, year: Optional[int]) -> None:
-        """将视频文件及同目录生成的 NFO/图片移入 '电影名 (年份)/' 子目录。"""
+        """
+        将视频文件及同目录生成的 NFO/图片整理到 '电影名 (年份)/' 标准目录。
+        处理三种情况：
+        1. 文件在已命名的同名目录（如 '爆裂鼓手/'）：直接重命名目录，添加年份
+        2. 文件在媒体根目录：新建 '电影名 (年份)/' 子目录并移入
+        3. 文件已在标准目录：跳过
+        """
         year_str = f" ({year})" if year else ""
         standard_name = f"{title}{year_str}"
-        target_dir = file_path.parent / standard_name
+        parent = file_path.parent
 
-        # 已在标准目录中（防御性兜底）
-        if file_path.parent.name == standard_name:
-            logger.debug("已在标准目录，跳过整理: %s", file_path.parent.name)
+        # 情况 3：已在标准目录，跳过
+        if parent.name == standard_name:
+            logger.debug("已在标准目录，跳过整理: %s", parent.name)
             return
 
+        # 情况 1：父目录名等于标题（缺少年份），直接重命名目录
+        if parent.name == title:
+            target_dir = parent.rename(parent.parent / standard_name)
+            logger.info("目录已重命名: %s → %s/", title, standard_name)
+            return
+
+        # 情况 2：文件在媒体根目录或其他目录，新建标准子目录并移入
+        target_dir = parent / standard_name
         if target_dir.exists():
             logger.debug("目标目录已存在，跳过整理: %s", target_dir.name)
             return
@@ -269,7 +283,7 @@ class TaskQueue:
         moved.append(file_path.name)
 
         for asset in ["movie.nfo", "poster.jpg", "fanart.jpg", "logo.png"]:
-            src = file_path.parent / asset
+            src = parent / asset
             if src.exists():
                 shutil.move(str(src), str(target_dir / asset))
                 moved.append(asset)

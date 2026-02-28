@@ -108,6 +108,35 @@ class TestOrganizeMovie:
         assert (target / "movie.nfo").exists()
         assert (target / "poster.jpg").exists()
 
+    def test_renames_dir_when_parent_matches_title(self, queue, tmp_path):
+        """情况1：父目录名等于标题（缺少年份），直接重命名目录，添加年份"""
+        movie_dir = tmp_path / "爆裂鼓手"
+        movie_dir.mkdir()
+        video = movie_dir / "爆裂鼓手.mp4"
+        video.touch()
+        (movie_dir / "movie.nfo").touch()
+        (movie_dir / "poster.jpg").touch()
+
+        queue._organize_movie(video, "爆裂鼓手", 2014)
+
+        standard_dir = tmp_path / "爆裂鼓手 (2014)"
+        assert standard_dir.exists()
+        assert not (tmp_path / "爆裂鼓手").exists()
+        # 目录重命名后，原文件应仍在目录内
+        assert (standard_dir / "爆裂鼓手.mp4").exists()
+        assert (standard_dir / "movie.nfo").exists()
+        assert (standard_dir / "poster.jpg").exists()
+
+    def test_skips_if_already_in_standard_dir(self, queue, tmp_path):
+        """情况3：父目录名已是标准格式，跳过整理"""
+        movie_dir = tmp_path / "测试电影 (2023)"
+        movie_dir.mkdir()
+        video = movie_dir / "movie.mp4"
+        video.touch()
+
+        queue._organize_movie(video, "测试电影", 2023)
+        assert video.exists()  # 文件未被移动
+
     def test_skips_if_target_exists(self, queue, tmp_path):
         """目标目录已存在时跳过，不重复移动"""
         video = tmp_path / "movie.mp4"
