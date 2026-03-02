@@ -13,6 +13,8 @@ CONFIG_PATH = Path(__file__).parent.parent / "config" / "settings.yaml"
 
 @pytest.fixture(scope="module")
 def identifier():
+    if not CONFIG_PATH.exists():
+        pytest.skip("config/settings.yaml 不存在，跳过 LLM Identifier 集成测试")
     with open(CONFIG_PATH) as f:
         config = yaml.safe_load(f)
 
