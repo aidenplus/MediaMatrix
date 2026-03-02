@@ -10,6 +10,7 @@ from core.logger import setup_logging
 from api.routes import router
 from core.scanner import MediaScanner
 from core.identifier import MediaIdentifier
+from core.llm_identifier import LLMIdentifier
 from core.scraper import Scraper
 from core.nfo_writer import NFOWriter
 from core.image_downloader import ImageDownloader
@@ -77,10 +78,27 @@ if llm_key:
 # 初始化核心模块
 video_extensions = set(config["media"]["video_extensions"])
 music_extensions = set(config["media"]["music_extensions"])
-identifier = MediaIdentifier(
-    video_extensions=video_extensions,
-    music_extensions=music_extensions,
-)
+
+identifier_cfg = config.get("identifier", {})
+if identifier_cfg.get("engine") == "llm":
+    # LLM identifier：优先用 identifier 自己的配置，留空则复用 providers.llm
+    id_api_key = identifier_cfg.get("api_key") or llm_key
+    id_base_url = identifier_cfg.get("base_url") or llm_cfg.get("base_url", "https://api.openai.com/v1")
+    id_model = identifier_cfg.get("model") or llm_cfg.get("model", "gpt-4o-mini")
+    identifier = LLMIdentifier(
+        api_key=id_api_key,
+        model=id_model,
+        base_url=id_base_url,
+        video_extensions=video_extensions,
+        music_extensions=music_extensions,
+    )
+    logger.info("文件名识别引擎: LLM (%s)", id_model)
+else:
+    identifier = MediaIdentifier(
+        video_extensions=video_extensions,
+        music_extensions=music_extensions,
+    )
+    logger.info("文件名识别引擎: regex")
 scraper = Scraper(registry, max_concurrency=config["concurrency"]["max_requests"])
 nfo_writer = NFOWriter()
 image_downloader = ImageDownloader()
@@ -131,6 +149,8 @@ async def lifespan(app: FastAPI):
     await task_queue.stop()
     scanner.stop()
     image_downloader.close()
+    if hasattr(identifier, "close"):
+        identifier.close()
     logger.info("MediaMatrix 已关闭")
 
 

@@ -85,10 +85,11 @@ class TaskQueue:
             if re.match(r"^Season\s+\d+$", path.parent.name):
                 logger.debug("跳过（已在 Season 目录）: %s", path.name)
                 return None
-            if re.match(r"^.+\s*\(\d{4}\)$", path.parent.name):
-                logger.debug("跳过（已在整理目录）: %s", path.name)
+
+            if (path.parent / "movie.nfo").exists():
+                logger.debug("跳过（已有 NFO）: %s", path.name)
                 return None
-            if (path.parent / "movie.nfo").exists() or (path.parent / "tvshow.nfo").exists():
+            if (path.parent / "tvshow.nfo").exists() and not self._config.auto_organize:
                 logger.debug("跳过（已有 NFO）: %s", path.name)
                 return None
 
@@ -250,9 +251,11 @@ class TaskQueue:
     def _organize_movie(self, file_path: Path, title: str, year: Optional[int]) -> None:
         """
         将视频文件及同目录生成的 NFO/图片整理到 '电影名 (年份)/' 标准目录。
-        处理三种情况：
+        处理四种情况：
         1. 文件在已命名的同名目录（如 '爆裂鼓手/'）：直接重命名目录，添加年份
-        2. 文件在媒体根目录：新建 '电影名 (年份)/' 子目录并移入
+        1b. 父目录名含年份但带额外后缀（如 '星际穿越 (2014) 4K'）：重命名去除后缀
+        1c. 父目录是单片包装目录（PT/BT 发布组命名，只有一个视频文件）：重命名为标准名
+        2. 文件在媒体根目录（同目录有多个视频文件）：新建 '电影名 (年份)/' 子目录并移入
         3. 文件已在标准目录：跳过
         """
         year_str = f" ({year})" if year else ""
@@ -266,8 +269,29 @@ class TaskQueue:
 
         # 情况 1：父目录名等于标题（缺少年份），直接重命名目录
         if parent.name == title:
-            target_dir = parent.rename(parent.parent / standard_name)
+            parent.rename(parent.parent / standard_name)
             logger.info("目录已重命名: %s → %s/", title, standard_name)
+            return
+
+        # 情况 1b：父目录名含年份但带额外后缀（如 '星际穿越 (2014) 4K'）→ 重命名去除后缀
+        if parent.name.startswith(standard_name) and parent.name != standard_name:
+            parent.rename(parent.parent / standard_name)
+            logger.info("目录已重命名: %s → %s/", parent.name, standard_name)
+            return
+
+        # 情况 1c：父目录是单片包装目录（如 PT/BT 发布组命名）→ 重命名为标准名
+        # 判断依据：父目录中只有一个视频文件，说明该目录专为此片创建
+        video_files = [
+            f for f in parent.iterdir()
+            if f.is_file() and f.suffix.lower() in self._config.video_extensions
+        ]
+        if len(video_files) == 1:
+            target_dir = parent.parent / standard_name
+            if not target_dir.exists():
+                parent.rename(target_dir)
+                logger.info("目录已重命名: %s → %s/", parent.name, standard_name)
+            else:
+                logger.debug("目标目录已存在，跳过整理: %s", standard_name)
             return
 
         # 情况 2：文件在媒体根目录或其他目录，新建标准子目录并移入
@@ -310,14 +334,19 @@ class TaskQueue:
             logger.debug("已在 Season 目录，跳过整理: %s", file_path.name)
             return
 
-        # 情况 3：已在标准目录（目录名以 title 开头且含年份括号格式）
+        # 情况 3：已在标准目录（目录名精确匹配 'title (year)'）
         if re.match(rf"^{re.escape(title)}\s*\(\d{{4}}\)$", parent.name):
             show_dir = parent
         # 情况 2：在同名非标准目录（目录名等于 title，不含年份）
         elif parent.name == title:
             show_dir = parent.rename(parent.parent / standard_name)
             file_path = show_dir / file_path.name  # 目录重命名后更新文件路径
-            logger.info("目录已重命名: %s → %s", title, standard_name)
+            logger.info("目录已重命名: %s → %s", parent.name, standard_name)
+        # 情况 2b：含年份但带额外后缀（如 '大宋提刑官 (2005) 4K'）→ 重命名去除后缀
+        elif parent.name.startswith(standard_name):
+            show_dir = parent.rename(parent.parent / standard_name)
+            file_path = show_dir / file_path.name
+            logger.info("目录已重命名: %s → %s", parent.name, standard_name)
         # 情况 1：在媒体根目录或其他目录
         else:
             show_dir = parent / standard_name

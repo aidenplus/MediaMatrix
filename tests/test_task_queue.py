@@ -70,6 +70,24 @@ class TestEnqueue:
         result = queue.enqueue(str(tmp_path / "movie.mp4"))
         assert result is None
 
+    def test_enqueue_skips_tvshow_nfo_when_auto_organize_off(self, queue, tmp_path):
+        """auto_organize 关闭时，已有 tvshow.nfo 应跳过（刮削已完成）"""
+        queue._config.scrape_mode = "missing_only"
+        queue._config.auto_organize = False
+        (tmp_path / "tvshow.nfo").touch()
+        result = queue.enqueue(str(tmp_path / "S01E01.mp4"))
+        assert result is None
+
+    def test_enqueue_not_skip_tvshow_nfo_when_auto_organize_on(self, queue, tmp_path):
+        """auto_organize 开启时，即使有 tvshow.nfo 也不应跳过（文件还需移入 Season 目录）"""
+        queue._config.scrape_mode = "missing_only"
+        queue._config.auto_organize = True
+        (tmp_path / "tvshow.nfo").touch()
+        video = tmp_path / "S01E01.mp4"
+        video.touch()
+        result = queue.enqueue(str(video))
+        assert result is not None
+
     def test_enqueue_overwrite_ignores_existing_nfo(self, queue, tmp_path):
         """overwrite 模式下，即使已有 NFO 也应入队"""
         (tmp_path / "movie.nfo").touch()
@@ -94,9 +112,10 @@ class TestEnqueue:
 
 class TestOrganizeMovie:
     def test_creates_standard_dir_and_moves_files(self, queue, tmp_path):
-        """电影整理：创建 '电影名 (年份)/' 并移入视频和资产"""
+        """电影整理：文件在媒体根目录（多个视频文件），创建 '电影名 (年份)/' 并移入视频和资产"""
         video = tmp_path / "movie.mp4"
         video.touch()
+        (tmp_path / "other_movie.mp4").touch()  # 第二个视频，模拟媒体根目录
         (tmp_path / "movie.nfo").touch()
         (tmp_path / "poster.jpg").touch()
 
@@ -138,13 +157,44 @@ class TestOrganizeMovie:
         assert video.exists()  # 文件未被移动
 
     def test_skips_if_target_exists(self, queue, tmp_path):
-        """目标目录已存在时跳过，不重复移动"""
+        """媒体根目录下目标目录已存在时跳过，不重复移动"""
         video = tmp_path / "movie.mp4"
         video.touch()
+        (tmp_path / "other_movie.mp4").touch()  # 第二个视频，模拟媒体根目录
         (tmp_path / "测试电影 (2023)").mkdir()
 
         queue._organize_movie(video, "测试电影", 2023)
         assert video.exists()  # 文件未被移动
+
+    def test_renames_dir_with_extra_suffix(self, queue, tmp_path):
+        """情况1b：父目录名含年份但有额外后缀（如 '4K'），应重命名去除后缀"""
+        movie_dir = tmp_path / "星际穿越 (2014) 4K"
+        movie_dir.mkdir()
+        video = movie_dir / "星际穿越.mp4"
+        video.touch()
+
+        queue._organize_movie(video, "星际穿越", 2014)
+
+        standard_dir = tmp_path / "星际穿越 (2014)"
+        assert standard_dir.exists()
+        assert not (tmp_path / "星际穿越 (2014) 4K").exists()
+        assert not (standard_dir / "星际穿越 (2014)").exists()  # 不应新建子目录
+
+    def test_renames_single_video_wrapper_dir(self, queue, tmp_path):
+        """情况1c：父目录是 PT/BT 发布组命名的包装目录（只有一个视频文件），应重命名为标准名"""
+        release_dir = tmp_path / "Top.Gun.1986.2160p.UHD.BluRay.x265-GROUP"
+        release_dir.mkdir()
+        video = release_dir / "Top.Gun.1986.2160p.UHD.BluRay.x265-GROUP.mkv"
+        video.touch()
+        (release_dir / "movie.nfo").touch()
+        (release_dir / "poster.jpg").touch()
+
+        queue._organize_movie(video, "壮志凌云", 1986)
+
+        standard_dir = tmp_path / "壮志凌云 (1986)"
+        assert standard_dir.exists()
+        assert not (tmp_path / "Top.Gun.1986.2160p.UHD.BluRay.x265-GROUP").exists()
+        assert not (standard_dir / "壮志凌云 (1986)").exists()  # 不应新建子目录
 
 
 class TestOrganizeTv:
@@ -197,6 +247,21 @@ class TestOrganizeTv:
 
         # 原 tvshow.nfo 应仍在 show_dir，不被移走
         assert extra_nfo.exists()
+
+    def test_case2b_dir_with_extra_suffix_renamed(self, queue, tmp_path):
+        """情况2b：目录名含年份但带额外后缀（如 '大宋提刑官 (2005) 4K'），应重命名去除后缀"""
+        show_dir = tmp_path / "大宋提刑官 (2005) 4K"
+        show_dir.mkdir()
+        video = show_dir / "Judge.of.Song.Dynasty.S01E12.mp4"
+        video.touch()
+
+        queue._organize_tv(video, "大宋提刑官", 2005, 1, 12)
+
+        standard_dir = tmp_path / "大宋提刑官 (2005)"
+        assert standard_dir.exists()
+        assert not (tmp_path / "大宋提刑官 (2005) 4K").exists()
+        assert not (standard_dir / "大宋提刑官 (2005)").exists()  # 不应新建子目录
+        assert (standard_dir / "Season 01" / "大宋提刑官 S01E12.mp4").exists()
 
 
 class TestFindShowDir:
@@ -314,6 +379,7 @@ class TestWorkerProcess:
 
         video = tmp_path / "movie.mp4"
         video.touch()
+        (tmp_path / "other_movie.mp4").touch()  # 第二个视频，模拟媒体根目录，避免触发包装目录重命名
         nfo = tmp_path / "movie.nfo"
         nfo.touch()
 

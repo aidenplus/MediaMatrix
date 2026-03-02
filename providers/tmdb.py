@@ -60,6 +60,7 @@ class TMDBProvider(BaseProvider):
         """
         根据 provider_id（格式: "movie:12345" 或 "tv:12345"）获取完整元数据。
         额外调用 /images 接口获取透明 Logo。
+        当 TMDB 主接口未返回本地化标题时，从 /translations 接口补取中文译名。
         """
         media_type, tmdb_id = provider_id.split(":", 1)
         endpoint = f"/movie/{tmdb_id}" if media_type == "movie" else f"/tv/{tmdb_id}"
@@ -73,6 +74,11 @@ class TMDBProvider(BaseProvider):
         title = data.get("title") or data.get("name", "")
         original_title = data.get("original_title") or data.get("original_name", "")
         date_str = data.get("release_date") or data.get("first_air_date")
+
+        # TMDB 的 zh-CN 本地化数据对部分影片存在缺失（title 字段与原名相同），
+        # 此时从 /translations 接口按 CN→SG→HK→TW 顺序补取中文译名
+        if title == original_title:
+            title = self._fetch_zh_title(tmdb_id, media_type) or title
 
         return MediaDetail(
             provider_id=provider_id,
@@ -89,6 +95,29 @@ class TMDBProvider(BaseProvider):
             provider=self.name,
             extra={"tmdb_id": tmdb_id},
         )
+
+    def _fetch_zh_title(self, tmdb_id: str, media_type: str) -> Optional[str]:
+        """
+        从 /translations 接口获取中文标题。
+        按 CN→SG→HK→TW 顺序取第一个非空译名：
+        - CN（中国大陆）数据常有缺失，SG（新加坡）通常有完整简体中文
+        - HK/TW 为繁体中文备用
+        """
+        endpoint = f"/movie/{tmdb_id}/translations" if media_type == "movie" else f"/tv/{tmdb_id}/translations"
+        try:
+            resp = self._client.get(f"{self.base_url}{endpoint}")
+            resp.raise_for_status()
+            translations = {
+                t["iso_3166_1"]: t["data"].get("title") or t["data"].get("name", "")
+                for t in resp.json().get("translations", [])
+                if t.get("iso_639_1") == "zh"
+            }
+            for region in ("CN", "SG", "HK", "TW"):
+                if translations.get(region):
+                    return translations[region]
+        except Exception:
+            pass
+        return None
 
     def _fetch_logo(self, tmdb_id: str, media_type: str) -> Optional[str]:
         """
