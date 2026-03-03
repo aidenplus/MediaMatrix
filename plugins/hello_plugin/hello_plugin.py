@@ -8,7 +8,7 @@ class HelloPlugin(BasePlugin):
     name = "hello_plugin"
     version = "1.0.0"
 
-    def on_init(self, config: dict) -> None:
+    def on_init(self, config: dict, **kwargs) -> None:
         logger.info("[HelloPlugin] 已加载，当前刮削模式: %s", config["media"]["scrape_mode"])
 
     def after_scraped(self, media_item: dict) -> None:

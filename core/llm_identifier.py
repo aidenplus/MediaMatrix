@@ -85,11 +85,13 @@ class LLMIdentifier:
         suffix = p.suffix.lower()
 
         if suffix in self._music_extensions:
-            return MediaQuery(title=p.stem, media_type="music")
+            return MediaQuery(title=p.stem, media_type="music", extra={"filename": p.stem})
         if suffix not in self._video_extensions:
             return None
 
-        return self._identify_by_llm(p.stem)
+        query = self._identify_by_llm(p.stem)
+        query.extra["filename"] = p.stem
+        return query
 
     def _identify_by_llm(self, filename: str) -> MediaQuery:
         """调用 LLM 解析文件名，失败时降级为文件名直接作为标题"""

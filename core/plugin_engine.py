@@ -22,8 +22,10 @@ class BasePlugin(ABC):
     name: str = ""
     version: str = "0.0.1"
 
-    def on_init(self, config: dict) -> None:
-        """系统启动时调用，config 为完整的 settings.yaml 内容"""
+    def on_init(self, config: dict, **kwargs) -> None:
+        """系统启动时调用，config 为完整的 settings.yaml 内容。
+        registry 为 ProviderRegistry 实例，可通过 kwargs.get('registry') 获取，
+        插件可在此 hook 中向 registry 注册自定义 Provider。"""
         pass
 
     def after_scraped(self, media_item: dict) -> None:

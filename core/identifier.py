@@ -88,7 +88,8 @@ class MediaIdentifier:
                     season, episode = _parse_num(m.group(1)), None
                 else:  # 只有集号，季号默认 1
                     season, episode = 1, _parse_num(m.group(1))
-                return MediaQuery(title=title, media_type="tv", season=season, episode=episode)
+                return MediaQuery(title=title, media_type="tv", season=season, episode=episode,
+                                  extra={"filename": name})
 
         # 尝试电影命名格式，提取标题和年份
         for pattern in MOVIE_PATTERNS:
@@ -96,10 +97,12 @@ class MediaIdentifier:
             if m:
                 title = m.group(1).replace(".", " ").strip()
                 year = int(m.group(2)) if len(m.groups()) > 1 else None
-                return MediaQuery(title=title, media_type="movie", year=year)
+                return MediaQuery(title=title, media_type="movie", year=year,
+                                  extra={"filename": name})
 
         # 兜底：无法解析年份，直接用文件名作为标题
-        return MediaQuery(title=name.replace(".", " ").strip(), media_type="movie")
+        return MediaQuery(title=name.replace(".", " ").strip(), media_type="movie",
+                          extra={"filename": name})
 
     def _identify_music(self, path: Path) -> MediaQuery:
         # TODO: 使用 mutagen 读取 ID3/FLAC 标签获取 title/artist，当前用文件名代替

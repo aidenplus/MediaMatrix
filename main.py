@@ -106,7 +106,7 @@ image_downloader = ImageDownloader()
 # 加载插件目录下所有 .py / .so 插件，并触发 on_init hook
 plugin_engine = PluginEngine()
 plugin_engine.load_plugins(config["plugins"]["dir"])
-plugin_engine.trigger("on_init", config=config)
+plugin_engine.trigger("on_init", config=config, registry=registry)
 
 # 初始化任务队列
 task_queue = TaskQueue(
