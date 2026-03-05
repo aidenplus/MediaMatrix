@@ -24,7 +24,8 @@ media:
     - .mp4
     - .avi
     - .mov
-    - .ts
+    # .ts 同时是 TypeScript 文件扩展名，默认不启用，MPEG-TS 用户可手动取消注释
+    # - .ts
   # 支持的音乐文件扩展名
   music_extensions:
     - .flac

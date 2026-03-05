@@ -119,6 +119,7 @@ task_queue = TaskQueue(
         scrape_mode=config["media"]["scrape_mode"],
         auto_organize=config["media"]["auto_organize"],
         video_extensions=video_extensions,
+        media_paths=set(config["media"]["paths"]),
     ),
 )
 

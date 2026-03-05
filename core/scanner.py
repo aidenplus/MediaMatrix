@@ -13,17 +13,23 @@ class _EventHandler(FileSystemEventHandler):
     移动事件（如从下载目录移入媒体库）也视为新文件触发回调。
     """
 
-    def __init__(self, callback: Callable[[str], None]):
+    def __init__(self, callback: Callable[[str], None], media_extensions: set[str] = None):
         self._callback = callback
+        self._media_extensions = media_extensions
+
+    def _should_handle(self, path: str) -> bool:
+        if self._media_extensions is None:
+            return True
+        return Path(path).suffix.lower() in self._media_extensions
 
     def on_created(self, event: FileSystemEvent):
-        if not event.is_directory:
+        if not event.is_directory and self._should_handle(event.src_path):
             logger.debug("检测到新文件: %s", event.src_path)
             self._callback(event.src_path)
 
     def on_moved(self, event: FileSystemEvent):
         # 文件被移动到监控目录时，以目标路径触发回调
-        if not event.is_directory:
+        if not event.is_directory and self._should_handle(event.dest_path):
             logger.debug("检测到移入文件: %s", event.dest_path)
             self._callback(event.dest_path)
 
@@ -55,7 +61,7 @@ class MediaScanner:
 
     def start(self) -> None:
         """启动 watchdog 观察者，开始监听所有已注册路径"""
-        handler = _EventHandler(self._on_file)
+        handler = _EventHandler(self._on_file, self._media_extensions)
         for path in self.watch_paths:
             self._observer.schedule(handler, path, recursive=True)
             logger.info("开始监控目录: %s", path)

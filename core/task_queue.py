@@ -20,12 +20,50 @@ logger = logging.getLogger(__name__)
 # 下载中的临时文件扩展名，跳过不处理
 _TEMP_EXTENSIONS = {".xltd", ".td", ".downloading", ".part", ".crdownload", ".tmp"}
 
+# 文件名非法字符替换表（半角 → 全角，跨平台兼容）
+# Windows 禁止: \ / : * ? " < > |；macOS 额外禁止 :；/ 所有平台禁止
+_FILENAME_CHAR_MAP = str.maketrans({
+    "/":  "／",
+    "\\":  "",   # 无对应全角，直接删除
+    ":":  "：",
+    "*":  "＊",
+    "?":  "？",
+    '"':  "＂",
+    "<":  "＜",
+    ">":  "＞",
+    "|":  "｜",
+})
+
+
+def _safe_name(title: str, suffix: str = "", max_bytes: int = 255) -> str:
+    """
+    将标题处理为安全的文件/目录名：
+    1. 替换各平台非法字符为对应全角字符
+    2. 移除控制字符（0x00-0x1F, 0x7F）
+    3. 截断到 max_bytes 字节以内（UTF-8），suffix 部分不截断
+    截断时末尾补 '…' 标记。
+    """
+    name = title.translate(_FILENAME_CHAR_MAP)
+    name = re.sub(r"[\x00-\x1f\x7f]", "", name)
+
+    suffix_bytes = len(suffix.encode("utf-8"))
+    ellipsis = "…"
+    ellipsis_bytes = len(ellipsis.encode("utf-8"))  # 3 bytes
+    name_max = max_bytes - suffix_bytes
+    encoded = name.encode("utf-8")
+    if len(encoded) > name_max:
+        truncate_to = name_max - ellipsis_bytes
+        name = encoded[:truncate_to].decode("utf-8", errors="ignore").rstrip() + ellipsis
+
+    return f"{name}{suffix}"
+
 
 @dataclass
 class TaskQueueConfig:
     scrape_mode: str = "missing_only"   # missing_only | overwrite
     auto_organize: bool = False
-    video_extensions: set[str] = field(default_factory=lambda: {".mkv", ".mp4", ".avi", ".mov", ".ts"})
+    video_extensions: set[str] = field(default_factory=lambda: {".mkv", ".mp4", ".avi", ".mov"})
+    media_paths: set[str] = field(default_factory=set)  # 配置的媒体根目录，auto_organize 时不重命名
 
 
 class TaskQueue:
@@ -259,7 +297,7 @@ class TaskQueue:
         3. 文件已在标准目录：跳过
         """
         year_str = f" ({year})" if year else ""
-        standard_name = f"{title}{year_str}"
+        standard_name = _safe_name(title, year_str)
         parent = file_path.parent
 
         # 情况 3：已在标准目录，跳过
@@ -281,11 +319,13 @@ class TaskQueue:
 
         # 情况 1c：父目录是单片包装目录（如 PT/BT 发布组命名）→ 重命名为标准名
         # 判断依据：父目录中只有一个视频文件，说明该目录专为此片创建
+        # 排除媒体根目录本身（不能将根目录重命名）
         video_files = [
             f for f in parent.iterdir()
             if f.is_file() and f.suffix.lower() in self._config.video_extensions
         ]
-        if len(video_files) == 1:
+        is_media_root = str(parent) in self._config.media_paths
+        if len(video_files) == 1 and not is_media_root:
             target_dir = parent.parent / standard_name
             if not target_dir.exists():
                 parent.rename(target_dir)
@@ -322,10 +362,11 @@ class TaskQueue:
         3. 文件已在标准目录（如 '大宋提刑官 (2005)/'）：直接在内创建 Season 子目录
         """
         year_str = f" ({year})" if year else ""
-        standard_name = f"{title}{year_str}"
+        standard_name = _safe_name(title, year_str)
         season_num = season or 1
         episode_num = episode or 1
-        new_filename = f"{title} S{season_num:02d}E{episode_num:02d}{file_path.suffix}"
+        episode_suffix = f" S{season_num:02d}E{episode_num:02d}{file_path.suffix}"
+        new_filename = _safe_name(title, episode_suffix)
 
         parent = file_path.parent
 
