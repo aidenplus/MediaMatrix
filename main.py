@@ -130,7 +130,11 @@ def on_file(path: str) -> None:
 
 
 # 初始化文件扫描器，注册所有媒体根目录
-scanner = MediaScanner(on_file=on_file, media_extensions=video_extensions | music_extensions)
+scanner = MediaScanner(
+    on_file=on_file,
+    media_extensions=video_extensions | music_extensions,
+    poll_interval=config["media"].get("poll_interval", 5),
+)
 for path in config["media"]["paths"]:
     scanner.add_path(path)
 

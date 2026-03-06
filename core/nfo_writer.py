@@ -62,6 +62,19 @@ class NFOWriter:
         SubElement(root, "rating").text = str(detail.rating) if detail.rating else ""
         for genre in detail.genres:
             SubElement(root, "genre").text = genre
+        # TODO: 写入演员信息
+        # 需要联动三处：
+        # 1. providers/base.py MediaDetail 增加 actors: list[dict] 顶层字段
+        #    每条格式：{"name": "天使萌", "thumb": "https://...jpg"}（thumb 可选）
+        # 2. plugins/jav_expert/provider.py _to_media_detail() 将
+        #    extra["actresses"] 同步填入 MediaDetail.actors
+        #    （actresses 数据已由 JavDB/DMM 爬虫收集，存在 extra 中）
+        # 3. 此处遍历 detail.actors 生成 <actor> 元素：
+        # for actor in detail.actors:
+        #     actor_el = SubElement(root, "actor")
+        #     SubElement(actor_el, "name").text = actor.get("name", "")
+        #     if actor.get("thumb"):
+        #         SubElement(actor_el, "thumb").text = actor["thumb"]
 
     def _save(self, root: Element, path: Path) -> str:
         """格式化缩进并写入文件，返回文件绝对路径"""

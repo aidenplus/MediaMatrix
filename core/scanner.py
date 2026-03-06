@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Callable
 import logging
-from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 logger = logging.getLogger(__name__)
@@ -45,14 +45,15 @@ class MediaScanner:
     4. stop() 停止监控（应在应用关闭时调用）
     """
 
-    def __init__(self, on_file: Callable[[str], None], media_extensions: set[str] = None):
+    def __init__(self, on_file: Callable[[str], None], media_extensions: set[str] = None, poll_interval: int = 5):
         """
         :param on_file: 发现新文件时的回调函数，参数为文件绝对路径
         :param media_extensions: 需要处理的文件扩展名集合，None 表示不过滤
+        :param poll_interval: 轮询间隔（秒），默认 5 秒
         """
         self._on_file = on_file
         self._media_extensions = media_extensions
-        self._observer = Observer()
+        self._observer = PollingObserver(timeout=poll_interval)
         self.watch_paths: list[str] = []
 
     def add_path(self, path: str) -> None:

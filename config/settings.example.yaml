@@ -18,6 +18,9 @@ media:
   # 自动整理目录：刮削完成后自动创建 "电影名 (年份)/" 子目录并移入文件
   # 默认关闭，开启前请确认媒体库路径正确，避免文件被移到错误位置
   auto_organize: false
+  # 文件监控轮询间隔（秒）
+  # PollingObserver 每隔此时间扫描目录对比变化，兼容 Docker 挂载卷、NFS、外接硬盘等场景
+  poll_interval: 5
   # 支持的视频文件扩展名
   video_extensions:
     - .mkv
