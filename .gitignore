@@ -44,6 +44,7 @@ logs/*
 !README.md
 !README.en.md
 !docs/*.md
+CLAUDE.md
 
 # 媒体库（不上传实际媒体文件）
 /media/

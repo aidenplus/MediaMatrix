@@ -146,6 +146,18 @@ class TestOrganizeMovie:
         assert (standard_dir / "movie.nfo").exists()
         assert (standard_dir / "poster.jpg").exists()
 
+    def test_organize_movie_av_code(self, queue, tmp_path):
+        """AV 番号：目录名格式为 '[番号]标题 (年份)'"""
+        video = tmp_path / "SSIS-001.mkv"
+        video.touch()
+        (tmp_path / "other.mkv").touch()  # 第二个视频，模拟媒体根目录（触发情况 2）
+        queue._config.media_paths = {str(tmp_path)}
+
+        queue._organize_movie(video, "標題", 2023, av_code="SSIS-001")
+
+        assert (tmp_path / "[SSIS-001]標題 (2023)").is_dir()
+        assert (tmp_path / "[SSIS-001]標題 (2023)" / "SSIS-001.mkv").exists()
+
     def test_skips_if_already_in_standard_dir(self, queue, tmp_path):
         """情况3：父目录名已是标准格式，跳过整理"""
         movie_dir = tmp_path / "测试电影 (2023)"

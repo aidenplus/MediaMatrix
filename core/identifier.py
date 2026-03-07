@@ -41,7 +41,7 @@ TV_PATTERNS: list[tuple[re.Pattern, str]] = [
 ]
 
 MUSIC_EXTENSIONS = {".flac", ".mp3", ".aac", ".wav", ".m4a"}
-VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".ts"}
+VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov",}
 
 
 class MediaIdentifier:

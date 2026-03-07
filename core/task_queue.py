@@ -270,7 +270,8 @@ class TaskQueue:
         # Step 6: 自动整理目录（配置开启时）
         if self._config.auto_organize:
             if detail.media_type == "movie":
-                self._organize_movie(file_path, detail.title, detail.year)
+                self._organize_movie(file_path, detail.title, detail.year,
+                                     av_code=detail.extra.get("av_code"))
             elif detail.media_type == "tv":
                 self._organize_tv(file_path, detail.title, detail.year, query.season, query.episode)
 
@@ -286,7 +287,7 @@ class TaskQueue:
                 return d
         return None
 
-    def _organize_movie(self, file_path: Path, title: str, year: Optional[int]) -> None:
+    def _organize_movie(self, file_path: Path, title: str, year: Optional[int], av_code: Optional[str] = None) -> None:
         """
         将视频文件及同目录生成的 NFO/图片整理到 '电影名 (年份)/' 标准目录。
         处理四种情况：
@@ -295,9 +296,12 @@ class TaskQueue:
         1c. 父目录是单片包装目录（PT/BT 发布组命名，只有一个视频文件）：重命名为标准名
         2. 文件在媒体根目录（同目录有多个视频文件）：新建 '电影名 (年份)/' 子目录并移入
         3. 文件已在标准目录：跳过
+
+        AV 番号：若提供 av_code，目录名格式为 '[番号]标题 (年份)'。
         """
         year_str = f" ({year})" if year else ""
-        standard_name = _safe_name(title, year_str)
+        prefix = f"[{av_code}]{title}" if av_code else title
+        standard_name = _safe_name(prefix, year_str)
         parent = file_path.parent
 
         # 情况 3：已在标准目录，跳过
@@ -305,10 +309,10 @@ class TaskQueue:
             logger.debug("已在标准目录，跳过整理: %s", parent.name)
             return
 
-        # 情况 1：父目录名等于标题（缺少年份），直接重命名目录
-        if parent.name == title:
+        # 情况 1：父目录名等于标题前缀（缺少年份），直接重命名目录
+        if parent.name == prefix:
             parent.rename(parent.parent / standard_name)
-            logger.info("目录已重命名: %s → %s/", title, standard_name)
+            logger.info("目录已重命名: %s → %s/", prefix, standard_name)
             return
 
         # 情况 1b：父目录名含年份但带额外后缀（如 '星际穿越 (2014) 4K'）→ 重命名去除后缀
