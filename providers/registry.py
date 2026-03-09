@@ -42,6 +42,9 @@ class ProviderRegistry:
                     logger.debug("Provider %s 无结果: %r", provider.name, query.title)
                     continue
                 detail = provider.get_detail(results[0].provider_id)
+                if detail is None:
+                    logger.debug("Provider %s get_detail 无结果，尝试下一个", provider.name)
+                    continue
                 logger.debug("使用数据源: %s", provider.name)
                 return detail
             except Exception as e:
