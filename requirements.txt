@@ -4,6 +4,7 @@ httpx
 watchdog
 pydantic
 pyyaml
+zhconv
 pytest
 pytest-asyncio
 pytest-mock

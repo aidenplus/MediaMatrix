@@ -3,6 +3,7 @@ import logging
 import re
 import shutil
 import uuid
+import zhconv
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -56,6 +57,11 @@ def _safe_name(title: str, suffix: str = "", max_bytes: int = 255) -> str:
         name = encoded[:truncate_to].decode("utf-8", errors="ignore").rstrip() + ellipsis
 
     return f"{name}{suffix}"
+
+
+def _normalize(s: str) -> str:
+    """将字符串转为简体中文，用于目录名与刮削标题的简繁匹配。"""
+    return zhconv.convert(s, "zh-hans")
 
 
 @dataclass
@@ -380,15 +386,15 @@ class TaskQueue:
             return
 
         # 情况 3：已在标准目录（目录名精确匹配 'title (year)'）
-        if re.match(rf"^{re.escape(title)}\s*\(\d{{4}}\)$", parent.name):
+        if re.match(rf"^{re.escape(_normalize(title))}\s*\(\d{{4}}\)$", _normalize(parent.name)):
             show_dir = parent
-        # 情况 2：在同名非标准目录（目录名等于 title，不含年份）
-        elif parent.name == title:
+        # 情况 2：在同名非标准目录（目录名等于 title，不含年份，简繁不敏感）
+        elif _normalize(parent.name) == _normalize(title):
             show_dir = parent.rename(parent.parent / standard_name)
             file_path = show_dir / file_path.name  # 目录重命名后更新文件路径
             logger.info("目录已重命名: %s → %s", parent.name, standard_name)
         # 情况 2b：含年份但带额外后缀（如 '大宋提刑官 (2005) 4K'）→ 重命名去除后缀
-        elif parent.name.startswith(standard_name):
+        elif _normalize(parent.name).startswith(_normalize(standard_name)):
             show_dir = parent.rename(parent.parent / standard_name)
             file_path = show_dir / file_path.name
             logger.info("目录已重命名: %s → %s", parent.name, standard_name)
