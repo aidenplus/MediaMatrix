@@ -18,6 +18,8 @@ class ScrapeTask:
 def init_db() -> None:
     """初始化数据库，创建任务表（幂等）"""
     with _conn() as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
                 task_id    TEXT PRIMARY KEY,
@@ -62,4 +64,4 @@ def list_tasks(limit: int = 50) -> list[dict]:
 
 def _conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return sqlite3.connect(str(DB_PATH))
+    return sqlite3.connect(str(DB_PATH), timeout=30)
